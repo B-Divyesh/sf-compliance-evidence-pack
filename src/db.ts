@@ -1,0 +1,88 @@
+import type { EvidenceFile, Packet } from './types';
+
+const DB_NAME = 'deadline-packet';
+const DB_VERSION = 2;
+
+type StoredFile = EvidenceFile & { encrypted?: boolean; iv?: number[] };
+
+function request<T>(req: IDBRequest<T>): Promise<T> {
+  return new Promise((resolve, reject) => {
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error ?? new Error('The local database could not be opened.'));
+  });
+}
+
+function open(): Promise<IDBDatabase> {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(DB_NAME, DB_VERSION);
+    req.onupgradeneeded = () => {
+      const database = req.result;
+      if (!database.objectStoreNames.contains('packets')) database.createObjectStore('packets', { keyPath: 'id' });
+      if (!database.objectStoreNames.contains('files')) {
+        const files = database.createObjectStore('files', { keyPath: 'id' });
+        files.createIndex('packetId', 'packetId');
+      }
+      if (!database.objectStoreNames.contains('keys')) database.createObjectStore('keys', { keyPath: 'id' });
+    };
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error ?? new Error('The local database could not be opened.'));
+  });
+}
+
+async function store(name: 'packets' | 'files' | 'keys', mode: IDBTransactionMode = 'readonly') {
+  const database = await open();
+  return database.transaction(name, mode).objectStore(name);
+}
+
+export async function getPackets(): Promise<Packet[]> {
+  const rows = await request((await store('packets')).getAll() as IDBRequest<Packet[]>);
+  return rows.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+}
+
+export async function putPacket(packet: Packet): Promise<void> {
+  await request((await store('packets', 'readwrite')).put(packet));
+}
+
+export async function deletePacket(id: string): Promise<void> {
+  await request((await store('packets', 'readwrite')).delete(id));
+  const files = await getFiles(id);
+  await Promise.all(files.map((file) => deleteFile(file.id)));
+}
+
+export async function getFiles(packetId: string): Promise<EvidenceFile[]> {
+  const objectStore = await store('files');
+  const index = objectStore.index('packetId');
+  const rows = await request(index.getAll(packetId) as IDBRequest<StoredFile[]>);
+  const key = rows.some((row) => row.encrypted) ? await getDeviceKey() : null;
+  return Promise.all(rows.map(async (row) => {
+    if (!row.encrypted || !row.iv || !key) return row;
+    const decrypted = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: new Uint8Array(row.iv) }, key, await row.blob.arrayBuffer());
+    const { encrypted: _encrypted, iv: _iv, ...file } = row;
+    return { ...file, blob: new Blob([decrypted], { type: row.type }) };
+  }));
+}
+
+export async function putFile(file: EvidenceFile): Promise<void> {
+  const key = await getDeviceKey();
+  if (!key) {
+    await request((await store('files', 'readwrite')).put(file));
+    return;
+  }
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const encrypted = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, await file.blob.arrayBuffer());
+  const stored: StoredFile = { ...file, blob: new Blob([encrypted]), encrypted: true, iv: [...iv] };
+  await request((await store('files', 'readwrite')).put(stored));
+}
+
+export async function deleteFile(id: string): Promise<void> {
+  await request((await store('files', 'readwrite')).delete(id));
+}
+
+async function getDeviceKey(): Promise<CryptoKey | null> {
+  if (!globalThis.crypto?.subtle) return null;
+  const existing = await request((await store('keys')).get('device') as IDBRequest<{ id: string; key: CryptoKey } | undefined>);
+  if (existing?.key) return existing.key;
+  const key = await crypto.subtle.generateKey({ name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']);
+  await request((await store('keys', 'readwrite')).put({ id: 'device', key }));
+  return key;
+}

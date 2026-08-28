@@ -1,0 +1,384 @@
+import './styles.css';
+import { deleteFile, deletePacket, getFiles, getPackets, putFile, putPacket } from './db';
+import { makeBackup, makePdf, makeZip } from './export';
+import { captureLicense, checkoutUrl, hasUnlock, removeLicense, restoreLicense, verifyLicense } from './license';
+import type { EvidenceFile, Packet } from './types';
+import { daysUntil, download, escapeHtml, formatBytes, formatDate, safeFilename, uid } from './utils';
+
+const main = document.querySelector<HTMLElement>('#main')!;
+const toastRegion = document.querySelector<HTMLElement>('#toast-region')!;
+let packets: Packet[] = [];
+let currentId = localStorage.getItem('deadline-packet:current');
+let unlocked = false;
+let installPrompt: BeforeInstallPromptEvent | null = null;
+let saveQueue: Promise<void> = Promise.resolve();
+
+type BeforeInstallPromptEvent = Event & { prompt(): Promise<void>; userChoice: Promise<{ outcome: string }> };
+
+const defaultItems = [
+  'Sales invoices for the filing period',
+  'Bank or payment-provider statements',
+  'Business expense receipts',
+  'Cross-border payment or remittance evidence',
+  'Relevant contracts or engagement letters',
+  'Prior accountant correspondence and notices',
+];
+
+function announce(message: string, action?: { label: string; run: () => void }): void {
+  const toast = document.createElement('div');
+  toast.className = 'toast';
+  toast.innerHTML = `<span>${escapeHtml(message)}</span>`;
+  if (action) {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.textContent = action.label;
+    button.addEventListener('click', action.run);
+    toast.append(button);
+  }
+  toastRegion.replaceChildren(toast);
+  setTimeout(() => { if (toast.isConnected) toast.remove(); }, 6000);
+}
+
+function touch(packet: Packet, action: string): Packet {
+  const now = new Date().toISOString();
+  return { ...packet, updatedAt: now, history: [{ at: now, action }, ...packet.history].slice(0, 20) };
+}
+
+async function save(packet: Packet, action: string): Promise<void> {
+  const updated = touch(packet, action);
+  packets = packets.map((item) => item.id === updated.id ? updated : item).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+  const pending = saveQueue.then(() => putPacket(updated));
+  saveQueue = pending.catch(() => undefined);
+  await pending;
+  announce(action);
+  await render();
+}
+
+function latest(packet: Packet): Packet {
+  return packets.find((item) => item.id === packet.id) ?? packet;
+}
+
+function navigate(path: string): void {
+  history.pushState({}, '', path);
+  render();
+  requestAnimationFrame(() => main.focus());
+}
+
+function networkState(): void {
+  const badge = document.querySelector<HTMLElement>('#network-status');
+  if (!badge) return;
+  const online = navigator.onLine;
+  badge.classList.toggle('is-offline', !online);
+  badge.querySelector('em')!.textContent = online ? 'Online' : 'Offline — edits still save';
+}
+
+function licenseCard(compact = false): string {
+  if (unlocked) return `<section class="unlock-card unlocked" aria-label="Lifetime unlock active"><p class="eyebrow">Lifetime unlock</p><p><strong>Unlimited packets active</strong></p><button class="text-button" id="remove-license" type="button">Remove from this device</button></section>`;
+  return `<section class="unlock-card ${compact ? 'compact' : ''}" aria-labelledby="unlock-title">
+    <p class="eyebrow">Optional lifetime unlock</p>
+    <h2 id="unlock-title">Keep every filing period</h2>
+    <p>US$19 once. Your first complete packet is free; unlock unlimited packets and duplication.</p>
+    <a class="button small" href="${checkoutUrl}">Buy lifetime access</a>
+    <details><summary>Already bought it?</summary><form id="restore-form"><label for="license-token">License token</label><input id="license-token" name="token" autocomplete="off" required><button class="secondary small" type="submit">Verify and restore</button></form></details>
+    <p class="micro">Checkout is hosted by Sociobot/Dodo, the merchant of record. Refunds are handled there.</p>
+  </section>`;
+}
+
+function createDialog(): string {
+  const today = new Date();
+  const end = today.toISOString().slice(0, 10);
+  const start = new Date(today.getFullYear(), today.getMonth() - 3, 1).toISOString().slice(0, 10);
+  const deadline = new Date(today.getTime() + 30 * 86_400_000).toISOString().slice(0, 10);
+  return `<dialog id="create-dialog" aria-labelledby="create-title"><form method="dialog" class="dialog-form" id="create-form">
+    <div class="dialog-heading"><div><p class="eyebrow">New filing folder</p><h2 id="create-title">Start a packet</h2></div><button class="icon-button" value="cancel" aria-label="Close dialog">×</button></div>
+    <label for="packet-name">Packet name <span aria-hidden="true">*</span></label><input id="packet-name" name="name" required maxlength="80" placeholder="Example: Jan–Mar evidence">
+    <div class="field-grid"><div><label for="period-start">Period starts <span aria-hidden="true">*</span></label><input type="date" id="period-start" name="periodStart" value="${start}" required></div><div><label for="period-end">Period ends <span aria-hidden="true">*</span></label><input type="date" id="period-end" name="periodEnd" value="${end}" required></div></div>
+    <label for="deadline">Your handoff deadline <span aria-hidden="true">*</span></label><input type="date" id="deadline" name="deadline" value="${deadline}" required><p class="field-help">Use the date you want the packet with your accountant—not a statutory deadline.</p>
+    <label for="accountant">Accountant or contact <span class="optional">Optional</span></label><input id="accountant" name="accountant" maxlength="100" placeholder="Name or firm">
+    <p class="dialog-note">This creates an organizational checklist, not a filing or legal determination.</p>
+    <div class="dialog-actions"><button class="ghost" value="cancel">Cancel</button><button class="button" value="default" type="submit">Create packet</button></div>
+  </form></dialog>`;
+}
+
+function landing(): string {
+  return `<section class="hero">
+    <div class="hero-copy"><p class="eyebrow neon">Evidence in order. Questions in view.</p><h1>Beat the deadline.<br><span>Bring the packet.</span></h1><p class="lede">Gather invoices, receipts, missing items, and open questions into one calm handoff for your accountant. Your documents stay on this device.</p><div class="hero-actions"><button class="button create-button" type="button">Start your first packet</button><button class="ghost" id="import-button" type="button">Import backup</button><input type="file" id="import-input" accept="application/json,.json" hidden><span>No account. No upload. Works offline.</span></div></div>
+    <figure><img src="/assets/deadline-packet-hero.webp" width="1280" height="853" alt="A kraft evidence folder, receipts, invoice sheets, and a calculator arranged on a rain-dark night-market counter" fetchpriority="high" decoding="async"><figcaption><span>01</span> From scattered evidence to one reviewable handoff.</figcaption></figure>
+  </section>
+  <section class="promise-band" aria-label="How it works"><ol><li><b>01</b><span><strong>Set the period</strong>Choose your own handoff date.</span></li><li><b>02</b><span><strong>Gather the proof</strong>Mark gaps without guesswork.</span></li><li><b>03</b><span><strong>Export one packet</strong>ZIP + PDF index for review.</span></li></ol></section>
+  <section class="two-up"><div><p class="eyebrow">Built for human review</p><h2>Not another filing portal.</h2><p>Deadline Packet doesn’t calculate tax, interpret rules, or submit anything. It helps you arrive at the accountant conversation with the evidence—and the unknowns—clearly labelled.</p><ul class="ticks"><li>Local IndexedDB storage</li><li>Attachments included in your ZIP</li><li>Missing evidence listed automatically</li><li>Open questions kept beside the files</li></ul></div>${licenseCard()}</section>
+  ${createDialog()}`;
+}
+
+function daysLabel(deadline: string): string {
+  const days = daysUntil(deadline);
+  if (days < 0) return `${Math.abs(days)} day${Math.abs(days) === 1 ? '' : 's'} past your handoff date`;
+  if (days === 0) return 'Handoff is due today';
+  return `${days} day${days === 1 ? '' : 's'} until handoff`;
+}
+
+function packetSidebar(packet: Packet): string {
+  return `<aside class="packet-drawer" aria-label="Packet drawer"><div class="drawer-heading"><p class="eyebrow">Packet drawer</p><button class="icon-button create-button" type="button" aria-label="Create another packet">+</button></div>
+    <ul>${packets.map((item) => `<li><button type="button" data-select="${item.id}" ${item.id === packet.id ? 'aria-current="page"' : ''}><span>${escapeHtml(item.name)}</span><small>${formatDate(item.deadline)}</small></button></li>`).join('')}</ul>
+    <div class="drawer-tools"><button class="ghost small" id="import-button" type="button">Import backup</button><input type="file" id="import-input" accept="application/json,.json" hidden>${licenseCard(true)}</div>
+  </aside>`;
+}
+
+function dashboard(packet: Packet, files: EvidenceFile[]): string {
+  const complete = packet.checklist.filter((item) => item.complete).length;
+  const total = packet.checklist.length;
+  const percent = total ? Math.round(complete / total * 100) : 0;
+  const missing = packet.checklist.filter((item) => !item.complete);
+  const openQuestions = packet.questions.filter((item) => !item.answered);
+  return `<div class="app-layout">${packetSidebar(packet)}<article class="packet-workbench">
+    <header class="packet-heading"><div><p class="eyebrow">${escapeHtml(packet.periodStart)} — ${escapeHtml(packet.periodEnd)}</p><h1>${escapeHtml(packet.name)}</h1><p class="due-line"><span aria-hidden="true"></span>${escapeHtml(daysLabel(packet.deadline))} · ${formatDate(packet.deadline)}</p></div><div class="completion-stamp"><strong>${percent}%</strong><span>${complete} of ${total} evidence groups ready</span></div></header>
+    <div class="progress-track" role="progressbar" aria-label="Packet checklist completion" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${percent}"><span style="width:${percent}%"></span></div>
+    <section class="summary-strip" aria-label="Packet summary"><div><strong>${files.length}</strong><span>files attached</span></div><div class="attention"><strong>${missing.length}</strong><span>evidence gaps</span></div><div><strong>${openQuestions.length}</strong><span>open questions</span></div><div><strong>${packet.accountant ? '1' : '—'}</strong><span>${packet.accountant ? escapeHtml(packet.accountant) : 'contact not set'}</span></div></section>
+    <div class="work-grid">
+      <section class="paper-panel evidence-checklist" aria-labelledby="checklist-title"><div class="section-heading"><div><p class="folio">01 / Evidence map</p><h2 id="checklist-title">What should be in the packet?</h2></div><span class="section-count">${complete}/${total}</span></div>
+        <ul class="checklist">${packet.checklist.map((item) => `<li class="${item.complete ? 'is-complete' : ''}"><label><input type="checkbox" data-check="${item.id}" ${item.complete ? 'checked' : ''}><span class="custom-check" aria-hidden="true"></span><span><strong>${escapeHtml(item.label)}</strong><small>${item.complete ? 'Ready for review' : 'Still needed'}</small></span></label>${item.custom ? `<button class="row-delete" type="button" data-delete-check="${item.id}" aria-label="Remove ${escapeHtml(item.label)}">×</button>` : ''}</li>`).join('')}</ul>
+        <form class="inline-form" id="checklist-form"><label class="sr-only" for="checklist-item">Add a custom evidence item</label><input id="checklist-item" name="label" required maxlength="100" placeholder="Add another evidence item"><button class="secondary" type="submit">Add item</button></form>
+      </section>
+      <aside class="missing-board" aria-labelledby="missing-title"><p class="folio">Live gap list</p><h2 id="missing-title">Missing evidence</h2>${missing.length ? `<ul>${missing.map((item) => `<li><span aria-hidden="true">!</span>${escapeHtml(item.label)}</li>`).join('')}</ul>` : `<div class="clear-state"><span aria-hidden="true">✓</span><p><strong>No checklist gaps.</strong><br>Review your files and questions before export.</p></div>`}<p class="micro">This list follows your checklist. It is not a legal completeness check.</p></aside>
+    </div>
+    <section class="paper-panel files-panel" aria-labelledby="files-title"><div class="section-heading"><div><p class="folio">02 / Supporting files</p><h2 id="files-title">Attach the evidence</h2><p>Files are copied into this browser and included when you export.</p></div><label class="button file-button" for="file-input">Add files</label><input type="file" id="file-input" multiple hidden></div>
+      <div class="upload-note"><span aria-hidden="true">↘</span><p><strong>Local storage only.</strong> Up to 25 MB per file. Keep your exported ZIP somewhere you back up.</p></div>
+      ${files.length ? `<ul class="file-list">${files.map((file) => `<li><span class="file-icon" aria-hidden="true">${escapeHtml(file.name.split('.').pop()?.slice(0, 4).toUpperCase() || 'FILE')}</span><div><strong>${escapeHtml(file.name)}</strong><small>${escapeHtml(file.category)} · ${formatBytes(file.size)} · ${formatDate(file.addedAt.slice(0, 10))}</small></div><button class="row-delete" type="button" data-delete-file="${file.id}" aria-label="Remove ${escapeHtml(file.name)}">Remove</button></li>`).join('')}</ul>` : `<div class="empty-row"><span aria-hidden="true">＋</span><div><strong>No files attached yet</strong><p>Add invoices, receipts, statements, or supporting correspondence.</p></div></div>`}
+    </section>
+    <section class="paper-panel questions-panel" aria-labelledby="questions-title"><div class="section-heading"><div><p class="folio">03 / Human review</p><h2 id="questions-title">Questions for the accountant</h2><p>Keep uncertainty visible instead of guessing.</p></div><span class="section-count">${openQuestions.length} open</span></div>
+      ${packet.questions.length ? `<ul class="checklist question-list">${packet.questions.map((question) => `<li class="${question.answered ? 'is-complete' : ''}"><label><input type="checkbox" data-question="${question.id}" ${question.answered ? 'checked' : ''}><span class="custom-check" aria-hidden="true"></span><span><strong>${escapeHtml(question.text)}</strong><small>${question.answered ? 'Answered' : 'Needs an answer'}</small></span></label><button class="row-delete" type="button" data-delete-question="${question.id}" aria-label="Remove question">×</button></li>`).join('')}</ul>` : `<div class="empty-row slim"><span aria-hidden="true">?</span><div><strong>No questions written down</strong><p>Add anything you want reviewed rather than resolved by the app.</p></div></div>`}
+      <form class="inline-form" id="question-form"><label class="sr-only" for="question-text">Question for your accountant</label><input id="question-text" name="text" required maxlength="180" placeholder="Example: Which exchange-rate record should I use?"><button class="secondary" type="submit">Add question</button></form>
+    </section>
+    <section class="handoff-panel" aria-labelledby="handoff-title"><div><p class="folio">04 / Handoff counter</p><h2 id="handoff-title">Package it for review</h2><p>Every export is downloaded to you. Deadline Packet never emails or uploads it.</p></div><div class="handoff-actions"><button class="button" id="zip-export" type="button">Export accountant ZIP</button><button class="secondary" id="pdf-export" type="button">Download PDF index</button><button class="ghost" id="backup-export" type="button">Export JSON backup</button></div></section>
+    <details class="packet-settings"><summary>Packet details, history, and deletion</summary><form id="details-form" class="details-form"><div class="field-grid"><div><label for="detail-start">Period starts</label><input id="detail-start" name="periodStart" type="date" required value="${packet.periodStart}"></div><div><label for="detail-end">Period ends</label><input id="detail-end" name="periodEnd" type="date" required value="${packet.periodEnd}"></div></div><label for="detail-deadline">Handoff deadline</label><input id="detail-deadline" name="deadline" type="date" required value="${packet.deadline}"><label for="detail-accountant">Accountant or contact</label><input id="detail-accountant" name="accountant" value="${escapeHtml(packet.accountant)}" maxlength="100"><label for="packet-note">Packet note</label><textarea id="packet-note" name="note" rows="4" maxlength="1000">${escapeHtml(packet.note)}</textarea><button class="secondary" type="submit">Save packet details</button></form>
+      <div class="history"><h3>Recent history</h3><ol>${packet.history.slice(0, 8).map((entry) => `<li><span>${escapeHtml(entry.action)}</span><time datetime="${entry.at}">${new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(entry.at))}</time></li>`).join('')}</ol></div>
+      <div class="danger-zone">${unlocked ? `<button class="ghost" id="duplicate-packet" type="button">Duplicate as a new period</button>` : ''}<button class="danger" id="delete-packet" type="button">Delete packet and local files</button></div>
+    </details>
+  </article></div>${createDialog()}`;
+}
+
+function legalPage(kind: 'privacy' | 'terms'): string {
+  if (kind === 'privacy') return `<article class="legal"><p class="eyebrow">Plain-language policy · 28 August 2026</p><h1>Privacy, without fine print.</h1><p class="lede">Deadline Packet is designed so your evidence does not need to leave your device.</p><h2>What is stored</h2><p>Packet names, dates, checklist states, questions, notes, and attachments are stored in your browser’s IndexedDB. Where Web Crypto is available, attachment bytes are encrypted with a non-exportable key kept in the same browser profile. This protects data at rest, but it is not a substitute for device security. A license token and last verification result are stored in localStorage. We do not run analytics or advertising trackers.</p><h2>What leaves your device</h2><p>Your evidence never leaves automatically. If you buy or verify a lifetime license, your browser contacts the Sociobot billing API with the license token. Checkout is hosted by Sociobot/Dodo; their payment privacy terms apply there. Export only creates a download on your device.</p><h2>Retention and control</h2><p>Data remains until you delete a packet, clear this site’s browser storage, or uninstall it and clear its data. Export a JSON backup or accountant ZIP before clearing storage. We cannot recover local data or a browser key after it is cleared.</p><h2>Network and offline use</h2><p>The app shell is cached by a service worker. Once opened, packet work remains available offline. License verification is retried when a network is available and never blocks the free experience.</p><a class="text-link" href="/" data-route>← Return to your packets</a></article>`;
+  return `<article class="legal"><p class="eyebrow">Terms · 28 August 2026</p><h1>A preparation tool, not a filing service.</h1><p class="lede">By using Deadline Packet, you agree to use it as an organizational aid for human review.</p><h2>No professional advice</h2><p>The app does not calculate tax, determine legal requirements, validate document sufficiency, submit returns, or provide tax, accounting, or legal advice. Deadlines are dates you enter. Confirm all requirements with a qualified professional.</p><h2>Your data and exports</h2><p>You control the content you add and are responsible for lawful handling, backups, and secure delivery of exports. The software is provided as-is under the MIT License.</p><h2>Lifetime unlock</h2><p>US$19 is a one-time purchase for unlimited packets and packet duplication in this product. Sociobot/Dodo is the merchant of record. Refunds are handled through the merchant and revoke the associated license. Core exports and your first complete packet do not require purchase.</p><h2>Acceptable use</h2><p>Do not use the service or billing verification endpoint unlawfully, attempt to disrupt it, or misrepresent generated indexes as official filings.</p><a class="text-link" href="/" data-route>← Return to your packets</a></article>`;
+}
+
+async function render(): Promise<void> {
+  if (main.contains(document.activeElement)) (document.activeElement as HTMLElement)?.blur();
+  const path = location.pathname.replace(/\/+$/, '') || '/';
+  if (path === '/privacy' || path === '/terms') {
+    main.innerHTML = legalPage(path.slice(1) as 'privacy' | 'terms');
+    bindRoutes();
+    return;
+  }
+  if (!packets.length) {
+    main.innerHTML = landing();
+    bindCommon();
+    return;
+  }
+  const packet = packets.find((item) => item.id === currentId) ?? packets[0];
+  currentId = packet.id;
+  localStorage.setItem('deadline-packet:current', packet.id);
+  const files = await getFiles(packet.id);
+  main.innerHTML = dashboard(packet, files);
+  bindCommon();
+  bindDashboard(packet, files);
+}
+
+function bindRoutes(): void {
+  document.querySelectorAll<HTMLAnchorElement>('[data-route]').forEach((link) => {
+    link.onclick = (event) => { event.preventDefault(); navigate(new URL(link.href).pathname); };
+  });
+}
+
+function bindCommon(): void {
+  bindRoutes();
+  document.querySelectorAll<HTMLButtonElement>('.create-button').forEach((button) => button.onclick = () => {
+    if (packets.length >= 1 && !unlocked) {
+      document.querySelector<HTMLElement>('.unlock-card')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      announce('Unlimited packets require the one-time unlock. Your current packet stays fully usable.');
+      return;
+    }
+    document.querySelector<HTMLDialogElement>('#create-dialog')?.showModal();
+  });
+  const form = document.querySelector<HTMLFormElement>('#create-form');
+  form?.addEventListener('submit', async (event) => {
+    const submitter = (event as SubmitEvent).submitter as HTMLButtonElement | null;
+    if (submitter?.value === 'cancel') return;
+    event.preventDefault();
+    if (!form.reportValidity()) return;
+    const data = new FormData(form);
+    if (String(data.get('periodStart')) > String(data.get('periodEnd'))) {
+      announce('The period start must be before the period end.');
+      return;
+    }
+    const now = new Date().toISOString();
+    const packet: Packet = {
+      id: uid(), name: String(data.get('name')).trim(), periodStart: String(data.get('periodStart')),
+      periodEnd: String(data.get('periodEnd')), deadline: String(data.get('deadline')),
+      accountant: String(data.get('accountant')).trim(), note: '',
+      checklist: defaultItems.map((label) => ({ id: uid(), label, complete: false })), questions: [],
+      history: [{ at: now, action: 'Packet created' }], createdAt: now, updatedAt: now,
+    };
+    await putPacket(packet);
+    packets = [packet, ...packets]; currentId = packet.id;
+    form.closest('dialog')?.close();
+    announce('Packet created. Start by marking what you already have.');
+    await render();
+  });
+  const restore = document.querySelector<HTMLFormElement>('#restore-form');
+  restore?.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const token = String(new FormData(restore).get('token') || '').trim();
+    if (!token) return;
+    restoreLicense(token);
+    unlocked = true;
+    announce('License saved. Verifying in the background…');
+    await render();
+    const valid = await verifyLicense(true);
+    unlocked = valid;
+    announce(valid ? 'Lifetime unlock restored.' : 'That license is not active for Deadline Packet.');
+    await render();
+  });
+  document.querySelector<HTMLButtonElement>('#remove-license')?.addEventListener('click', () => {
+    removeLicense(); unlocked = false; announce('License removed from this device.'); render();
+  });
+  const importButton = document.querySelector<HTMLButtonElement>('#import-button');
+  const importInput = document.querySelector<HTMLInputElement>('#import-input');
+  importButton?.addEventListener('click', () => importInput?.click());
+  importInput?.addEventListener('change', () => importInput.files?.[0] && importBackup(importInput.files[0]));
+}
+
+function bindDashboard(packet: Packet, files: EvidenceFile[]): void {
+  document.querySelectorAll<HTMLButtonElement>('[data-select]').forEach((button) => button.onclick = () => {
+    currentId = button.dataset.select!; render();
+  });
+  document.querySelectorAll<HTMLInputElement>('[data-check]').forEach((input) => input.onchange = () => {
+    const base = latest(packet);
+    const checklist = base.checklist.map((item) => item.id === input.dataset.check ? { ...item, complete: input.checked } : item);
+    save({ ...base, checklist }, input.checked ? 'Evidence marked ready' : 'Evidence marked missing');
+  });
+  document.querySelectorAll<HTMLButtonElement>('[data-delete-check]').forEach((button) => button.onclick = () => {
+    const base = latest(packet); const item = base.checklist.find((value) => value.id === button.dataset.deleteCheck);
+    if (item && confirm(`Remove “${item.label}” from this checklist?`)) save({ ...base, checklist: base.checklist.filter((value) => value.id !== item.id) }, 'Custom evidence item removed');
+  });
+  document.querySelector<HTMLFormElement>('#checklist-form')?.addEventListener('submit', (event) => {
+    event.preventDefault(); const data = new FormData(event.currentTarget as HTMLFormElement); const label = String(data.get('label')).trim();
+    const base = latest(packet);
+    if (label) save({ ...base, checklist: [...base.checklist, { id: uid(), label, complete: false, custom: true }] }, 'Custom evidence item added');
+  });
+  document.querySelector<HTMLInputElement>('#file-input')?.addEventListener('change', async (event) => {
+    const input = event.currentTarget as HTMLInputElement;
+    const selected = [...(input.files ?? [])];
+    const tooLarge = selected.find((file) => file.size > 25 * 1024 * 1024);
+    if (tooLarge) { announce(`${tooLarge.name} is over the 25 MB per-file limit.`); return; }
+    if (!selected.length) return;
+    try {
+      for (const blob of selected) {
+        const file: EvidenceFile = { id: uid(), packetId: packet.id, name: blob.name, type: blob.type || 'application/octet-stream', size: blob.size, category: 'Supporting evidence', note: '', addedAt: new Date().toISOString(), blob };
+        await putFile(file);
+      }
+      await save(latest(packet), `${selected.length} file${selected.length === 1 ? '' : 's'} saved locally`);
+    } catch { announce('The files could not be saved. Check available browser storage and try again.'); }
+  });
+  document.querySelectorAll<HTMLButtonElement>('[data-delete-file]').forEach((button) => button.onclick = async () => {
+    const file = files.find((value) => value.id === button.dataset.deleteFile);
+    if (file && confirm(`Remove “${file.name}” from this packet? This only removes the local copy.`)) {
+      await deleteFile(file.id); await save(latest(packet), 'Local file removed');
+    }
+  });
+  document.querySelector<HTMLFormElement>('#question-form')?.addEventListener('submit', (event) => {
+    event.preventDefault(); const text = String(new FormData(event.currentTarget as HTMLFormElement).get('text')).trim();
+    const base = latest(packet);
+    if (text) save({ ...base, questions: [...base.questions, { id: uid(), text, answered: false }] }, 'Question added');
+  });
+  document.querySelectorAll<HTMLInputElement>('[data-question]').forEach((input) => input.onchange = () => {
+    const base = latest(packet);
+    const questions = base.questions.map((question) => question.id === input.dataset.question ? { ...question, answered: input.checked } : question);
+    save({ ...base, questions }, input.checked ? 'Question marked answered' : 'Question reopened');
+  });
+  document.querySelectorAll<HTMLButtonElement>('[data-delete-question]').forEach((button) => button.onclick = () => {
+    const base = latest(packet);
+    save({ ...base, questions: base.questions.filter((question) => question.id !== button.dataset.deleteQuestion) }, 'Question removed');
+  });
+  document.querySelector<HTMLFormElement>('#details-form')?.addEventListener('submit', (event) => {
+    event.preventDefault(); const data = new FormData(event.currentTarget as HTMLFormElement);
+    const periodStart = String(data.get('periodStart')); const periodEnd = String(data.get('periodEnd'));
+    if (periodStart > periodEnd) { announce('The period start must be before the period end.'); return; }
+    save({ ...latest(packet), periodStart, periodEnd, deadline: String(data.get('deadline')), accountant: String(data.get('accountant')).trim(), note: String(data.get('note')).trim() }, 'Packet details saved');
+  });
+  document.querySelector<HTMLButtonElement>('#zip-export')?.addEventListener('click', async (event) => {
+    const button = event.currentTarget as HTMLButtonElement; button.disabled = true; button.textContent = 'Packaging…';
+    try { download(await makeZip(packet, files), `${safeFilename(packet.name)}-accountant-packet.zip`); announce('Accountant ZIP downloaded. Nothing was sent.'); }
+    catch { announce('The ZIP could not be built. Check storage and try again.'); }
+    finally { button.disabled = false; button.textContent = 'Export accountant ZIP'; }
+  });
+  document.querySelector<HTMLButtonElement>('#pdf-export')?.addEventListener('click', () => {
+    download(new Blob([makePdf(packet, files) as BlobPart], { type: 'application/pdf' }), `${safeFilename(packet.name)}-index.pdf`); announce('PDF index downloaded.');
+  });
+  document.querySelector<HTMLButtonElement>('#backup-export')?.addEventListener('click', async () => {
+    try { download(await makeBackup(packet, files), `${safeFilename(packet.name)}-backup.json`); announce('JSON backup downloaded. Store it somewhere safe.'); }
+    catch { announce('The backup was too large to create. Export the accountant ZIP instead.'); }
+  });
+  document.querySelector<HTMLButtonElement>('#duplicate-packet')?.addEventListener('click', async () => {
+    const now = new Date().toISOString(); const copy: Packet = { ...packet, id: uid(), name: `${packet.name} — copy`, checklist: packet.checklist.map((item) => ({ ...item, id: uid(), complete: false })), questions: packet.questions.map((question) => ({ ...question, id: uid(), answered: false })), history: [{ at: now, action: 'Duplicated from an earlier packet' }], createdAt: now, updatedAt: now };
+    await putPacket(copy); packets = [copy, ...packets]; currentId = copy.id; announce('Packet duplicated without attachments.'); await render();
+  });
+  document.querySelector<HTMLButtonElement>('#delete-packet')?.addEventListener('click', async () => {
+    if (!confirm(`Permanently delete “${packet.name}” and its ${files.length} local file${files.length === 1 ? '' : 's'}? Export first if you need a copy.`)) return;
+    await deletePacket(packet.id); packets = packets.filter((item) => item.id !== packet.id); currentId = packets[0]?.id ?? null; announce('Packet and its local files deleted.'); await render();
+  });
+}
+
+async function importBackup(file: File): Promise<void> {
+  if (packets.length >= 1 && !unlocked) { announce('Importing additional packets requires the lifetime unlock.'); return; }
+  try {
+    const data = JSON.parse(await file.text()) as { version: number; packet: Packet; files?: Array<Omit<EvidenceFile, 'blob'> & { data: string }> };
+    if (data.version !== 1 || !data.packet?.name || !Array.isArray(data.packet.checklist)) throw new Error('Invalid backup');
+    const newId = uid(); const now = new Date().toISOString();
+    const packet: Packet = { ...data.packet, id: newId, name: `${data.packet.name} — imported`, createdAt: now, updatedAt: now, history: [{ at: now, action: 'Imported from JSON backup' }, ...(data.packet.history || [])] };
+    await putPacket(packet);
+    for (const item of data.files || []) {
+      const bytes = Uint8Array.from(atob(item.data), (character) => character.charCodeAt(0));
+      const { data: _data, ...meta } = item;
+      await putFile({ ...meta, id: uid(), packetId: newId, blob: new Blob([bytes as BlobPart], { type: item.type }) });
+    }
+    packets = [packet, ...packets]; currentId = newId; announce('Backup imported as a new packet.'); await render();
+  } catch { announce('That file is not a valid Deadline Packet backup.'); }
+}
+
+async function start(): Promise<void> {
+  captureLicense();
+  unlocked = hasUnlock();
+  packets = await getPackets();
+  await render();
+  document.body.classList.add('app-ready');
+  networkState();
+  verifyLicense().then(async (valid) => {
+    if (valid !== unlocked) { unlocked = valid; announce(valid ? 'Lifetime unlock verified.' : 'License no longer active. Free packet access remains available.'); await render(); }
+  });
+}
+
+window.addEventListener('popstate', () => render());
+window.addEventListener('online', networkState);
+window.addEventListener('offline', () => { networkState(); announce('You’re offline. Packet edits and exports still work locally.'); });
+window.addEventListener('beforeinstallprompt', (event) => {
+  event.preventDefault(); installPrompt = event as BeforeInstallPromptEvent;
+  const button = document.querySelector<HTMLButtonElement>('#install-button');
+  if (button) button.hidden = false;
+});
+document.querySelector<HTMLButtonElement>('#install-button')?.addEventListener('click', async () => {
+  if (!installPrompt) return; await installPrompt.prompt(); installPrompt = null;
+  const button = document.querySelector<HTMLButtonElement>('#install-button'); if (button) button.hidden = true;
+});
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js').then((registration) => {
+    registration.addEventListener('updatefound', () => {
+      if (navigator.serviceWorker.controller) announce('A fresh app version is ready.', { label: 'Reload', run: () => location.reload() });
+    });
+  }).catch(() => announce('Offline installation is unavailable in this browser session.')));
+}
+
+start().catch(() => {
+  main.innerHTML = `<section class="fatal-state"><p class="eyebrow">Local storage error</p><h1>Your packet drawer could not open.</h1><p>This browser may block IndexedDB in its current privacy mode. Try a regular browser window or allow site storage, then reload.</p><button class="button" type="button" onclick="location.reload()">Try again</button></section>`;
+});
