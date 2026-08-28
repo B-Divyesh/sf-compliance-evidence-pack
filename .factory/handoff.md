@@ -29,8 +29,8 @@ Date: 2026-08-28
 
 ## Deployment
 
-Push the repair commits on `main`; the configured static deployment consumes `dist/`. The post-push live check should confirm the new build identity, designed 404 status, and service-worker update on <https://compliance-evidence-pack.sociobot.in/>.
+Repair commit `b1fb7f1a4262dded5b8400b872f6421413233562` was pushed to `main`, the configured static-deployment trigger. At 13:18 UTC the hosted URL still served the previous `index-DlSdgKEl.js` asset and a 200 unknown route, so it was not used as repair evidence. Once propagation completes, confirm the new build identity, designed 404 status, and service-worker update on <https://compliance-evidence-pack.sociobot.in/>.
 
 ## Known gaps
 
-None in the product. The live deployment check is performed after the factory deployment trigger receives the pushed commits.
+No product gap remains. The external static deployment had not yet propagated at the recorded post-push check.
