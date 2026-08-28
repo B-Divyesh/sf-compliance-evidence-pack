@@ -50,10 +50,17 @@
   },
   {
     "id": "free-and-paid",
-    "claim": "One packet is free; a US$12 lifetime license adds unlimited packets and duplication. Checkout opens on Sociobot/Dodo.",
+    "claim": "The first complete packet and its core exports are free; a US$12 lifetime license adds unlimited packets and duplication. Checkout opens on Sociobot/Dodo.",
     "where": "landing facts, purchase card, terms, README",
     "test": "npm run test:e2e -- --grep @claim:free-and-paid",
-    "sandbox": "fresh Chromium context on /demo; prove a second packet is gated; assert the Sociobot checkout URL and the US$12 product price source; mock a valid Sociobot verification; prove creation and duplication become available"
+    "sandbox": "fresh Chromium context entered through /demo; create an unlicensed real packet, complete every checklist item, attach evidence, inspect its downloaded accountant ZIP, and prove a second packet is gated; assert the Sociobot checkout URL and US$12 hosted price; mock valid verification; prove creation and duplication become available"
+  },
+  {
+    "id": "hero-art-provenance",
+    "claim": "The original still-life artwork was generated for Deadline Packet with the documented factory-image prompt.",
+    "where": "landing footer, .factory/design.md",
+    "test": "npm run test:e2e -- --grep @claim:hero-art-provenance",
+    "sandbox": "fresh checkout and Chromium context; verify the retained source image, matching factory-image prompt sidecars, MIT provenance, source and derivative SHA-256 records, exact live hero/social bytes, live asset references, and footer disclosure"
   },
   {
     "id": "account-free",

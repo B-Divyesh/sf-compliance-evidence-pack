@@ -1,4 +1,5 @@
 import { readFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
 
 describe('static deployment policy', () => {
@@ -48,10 +49,25 @@ it('ships exact plain metadata, one lifetime-license term, and a 180px Apple ico
   expect(html).toContain('content="Prepare invoices, receipts, evidence gaps, and questions for accountant review."');
   expect(html).toContain('rel="apple-touch-icon" href="/icons/apple-touch-icon.png" sizes="180x180"');
   expect(publicCopy).not.toMatch(/one-time license|one-time unlock|lifetime unlock|new filing folder|accountant-ready|local-first|receipts, gaps/i);
+  expect(publicCopy).not.toMatch(/Evidence in order|Questions in view|scattered evidence|Not another filing portal|without fine print|app shell|service worker|not in the packet/i);
   const icon = readFileSync('public/icons/apple-touch-icon.png');
   expect(icon.subarray(1, 4).toString()).toBe('PNG');
   expect(icon.readUInt32BE(16)).toBe(180);
   expect(icon.readUInt32BE(20)).toBe(180);
+});
+
+it('records exact hashes for the disclosed generated hero and both public derivatives', () => {
+  const provenance = JSON.parse(readFileSync('assets/src/deadline-packet-hero.json', 'utf8')) as {
+    source_sha256: string;
+    derivatives: Array<{ path: string; sha256: string }>;
+  };
+  const hash = (path: string) => createHash('sha256').update(readFileSync(path)).digest('hex');
+  expect(hash('assets/src/deadline-packet-hero.png')).toBe(provenance.source_sha256);
+  expect(provenance.derivatives.map(({ path }) => path).sort()).toEqual([
+    'public/assets/deadline-packet-hero.webp',
+    'public/assets/deadline-packet-social.webp',
+  ]);
+  for (const derivative of provenance.derivatives) expect(hash(derivative.path), derivative.path).toBe(derivative.sha256);
 });
 
 it('keeps the catalog description verb-first and within 120 characters', () => {

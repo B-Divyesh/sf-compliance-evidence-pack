@@ -1,4 +1,5 @@
 import { createServer } from 'node:http';
+import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { extname, join, resolve } from 'node:path';
 import { test, expect, type Download } from '@playwright/test';
@@ -220,6 +221,26 @@ test('@claim:free-and-paid one packet is free and a valid US$12 lifetime license
   await page.getByRole('button', { name: 'Start your packet' }).click();
   await page.getByLabel('Packet name').fill('Free packet');
   await page.getByRole('button', { name: 'Create packet' }).click();
+  for (const label of [
+    'Sales invoices for the filing period',
+    'Bank or payment-provider statements',
+    'Business expense receipts',
+    'Cross-border payment or remittance evidence',
+    'Relevant contracts or engagement letters',
+    'Prior accountant correspondence and notices',
+  ]) await page.getByLabel(label).check();
+  await expect(page.locator('.completion-stamp')).toContainText('100%');
+  await page.locator('#file-input').setInputFiles({
+    name: 'free-packet-evidence.txt',
+    mimeType: 'text/plain',
+    buffer: Buffer.from('Evidence attached to the free complete packet.'),
+  });
+  await expect(page.getByText('free-packet-evidence.txt')).toBeVisible();
+  expect(await page.evaluate(() => localStorage.getItem('sb_license:compliance-evidence-pack'))).toBeNull();
+  const freeZipEvent = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'Export accountant ZIP' }).click();
+  const freeZip = unzipSync(new Uint8Array(await downloadBytes(await freeZipEvent)));
+  expect(Object.keys(freeZip)).toContain('evidence/01-free-packet-evidence-txt.txt');
   await page.getByRole('button', { name: 'Create another packet' }).click();
   await expect(page.getByText('Unlimited packets require a lifetime license')).toBeVisible();
   const buy = page.getByRole('link', { name: 'Buy a lifetime license' });
@@ -244,6 +265,47 @@ test('@claim:free-and-paid one packet is free and a valid US$12 lifetime license
   await expect(page.getByRole('button', { name: 'Duplicate as a new period' })).toBeVisible();
   await page.getByRole('button', { name: 'Create another packet' }).click();
   await expect(page.getByRole('dialog')).toBeVisible();
+});
+
+test('@claim:hero-art-provenance the disclosed hero artwork retains its source, prompt, and exact served derivatives', async ({ page, request }) => {
+  const provenance = JSON.parse(await readFile(resolve('assets/src/deadline-packet-hero.json'), 'utf8')) as {
+    model: string;
+    generated: string;
+    prompt: string;
+    license: string;
+    source_sha256: string;
+    derivatives: Array<{ path: string; sha256: string; width: number; height: number }>;
+  };
+  const generation = JSON.parse(await readFile(resolve('assets/src/deadline-packet-hero.png.json'), 'utf8')) as {
+    deployment: string;
+    prompt: string;
+  };
+  const sha256 = (bytes: Buffer) => createHash('sha256').update(bytes).digest('hex');
+  expect(provenance.model).toContain('factory-image');
+  expect(provenance.generated).toBe('2026-08-28');
+  expect(provenance.license).toContain('MIT');
+  expect(generation.deployment).toBe('factory-image');
+  expect(generation.prompt).toBe(provenance.prompt);
+  expect(sha256(await readFile(resolve('assets/src/deadline-packet-hero.png')))).toBe(provenance.source_sha256);
+  expect(provenance.derivatives).toEqual(expect.arrayContaining([
+    expect.objectContaining({ path: 'public/assets/deadline-packet-hero.webp', width: 1280, height: 853 }),
+    expect.objectContaining({ path: 'public/assets/deadline-packet-social.webp', width: 1200, height: 630 }),
+  ]));
+  for (const derivative of provenance.derivatives) {
+    const localBytes = await readFile(resolve(derivative.path));
+    expect(sha256(localBytes), derivative.path).toBe(derivative.sha256);
+    const response = await request.get(`/${derivative.path.replace(/^public\//, '')}`);
+    expect(response.ok(), derivative.path).toBe(true);
+    expect(sha256(await response.body()), derivative.path).toBe(derivative.sha256);
+  }
+  const design = await readFile(resolve('.factory/design.md'), 'utf8');
+  expect(design).toContain('assets/src/deadline-packet-hero.png');
+  expect(design).toContain('public/assets/deadline-packet-hero.webp');
+  expect(design).toContain('public/assets/deadline-packet-social.webp');
+  await page.goto('/');
+  await expect(page.locator('.hero img')).toHaveAttribute('src', '/assets/deadline-packet-hero.webp');
+  await expect(page.locator('meta[property="og:image"]')).toHaveAttribute('content', /^https:\/\/compliance-evidence-pack\.sociobot\.in\/assets\/deadline-packet-social\.webp(?:\?v=[a-z0-9-]+)?$/);
+  await expect(page.locator('footer')).toContainText('Original still-life artwork was AI-generated for Deadline Packet.');
 });
 
 test('rapid question and attachment edits survive reload', async ({ page }) => {
@@ -541,10 +603,10 @@ test('route titles, designed 404, keyboard dialog, mobile layout, CSP, and acces
   await page.goto('/');
   await page.getByLabel('Primary navigation').getByRole('link', { name: 'Privacy' }).focus();
   await page.keyboard.press('Enter');
-  await expect(page.locator('#main')).toBeFocused();
-  await expect(page.locator('#route-announcer')).toHaveText('Privacy, without fine print.');
+  await expect(page.getByRole('heading', { level: 1, name: 'How Deadline Packet stores and sends data.' })).toBeFocused();
+  await expect(page.locator('#route-announcer')).toHaveText('How Deadline Packet stores and sends data.');
   await page.goBack();
-  await expect(page.locator('#main')).toBeFocused();
+  await expect(page.getByRole('heading', { level: 1, name: 'Prepare evidence for your accountant.' })).toBeFocused();
   await expect(page.locator('#route-announcer')).toHaveText('Prepare evidence for your accountant.');
   await page.goto('/');
   await page.keyboard.press('Tab');
@@ -575,7 +637,7 @@ test('route titles, designed 404, keyboard dialog, mobile layout, CSP, and acces
   await expect(page.getByLabel('Demo mode')).toBeVisible();
   await page.goto('/misfiled-page');
   await expect(page).toHaveTitle('Page not found — Deadline Packet');
-  await expect(page.getByRole('heading', { level: 1 })).toHaveText('This page is not in the packet.');
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Page not found.');
   await expect(page.locator('meta[property="og:title"]')).toHaveAttribute('content', 'Page not found — Deadline Packet');
   await expect(page.locator('footer').getByRole('link', { name: 'Privacy' })).toBeVisible();
   await expect(page.locator('footer').getByRole('link', { name: 'Terms' })).toBeVisible();

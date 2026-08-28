@@ -3,5 +3,21 @@
   "generated": "2026-08-28",
   "prompt": "Overhead editorial still life of an independent freelancer's filing-period evidence at a rain-dark night-market counter; one tidy kraft folder, abstract invoice sheets with absolutely no legible writing, receipt strips, binder clip, small calculator-like geometric shapes; cyan and acid-lime neon reflected in wet dark teal brushed metal, restrained coral deadline tab; calm meticulous organization, tactile paper, cinematic 50mm product photography, deep shadows, high local contrast, composition weighted to the right with quiet negative space on the left. No people, no hands, no faces, no flags, no currency symbols, no legal seals, no brands, no logos, no readable text, no watermark, no gradient, no computer screen.",
   "review": "Accepted: no people, brands, seals, flags or currency marks. Abstract linework is non-legible; folder and receipts communicate evidence organization. Lime fruit and wet counter support the night-market setting without implying product capability.",
-  "license": "Original generated asset released with this repository under MIT."
+  "license": "Original generated asset released with this repository under MIT.",
+  "source_sha256": "32b0e09641c9eef0f6fc9a454a4c9d5a6b83efeaceb56f9ce688a916b1e5a7da",
+  "derivative_process": "The reviewed source was resized and cropped locally, then encoded as WebP. SHA-256 records bind the retained derivatives to this release.",
+  "derivatives": [
+    {
+      "path": "public/assets/deadline-packet-hero.webp",
+      "width": 1280,
+      "height": 853,
+      "sha256": "a0194454dbba44f747862c860cb6e122580ceb8e4106dc8b0369a8b357567597"
+    },
+    {
+      "path": "public/assets/deadline-packet-social.webp",
+      "width": 1200,
+      "height": 630,
+      "sha256": "eec9cba1391ef22703229760884f9d7d71c06769e18b36274cd95d8af67c18fb"
+    }
+  ]
 }

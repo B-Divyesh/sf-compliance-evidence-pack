@@ -17,7 +17,7 @@ One-click demo: <https://compliance-evidence-pack.sociobot.in/demo>
 - Builds an evidence-gap list from the editable checklist.
 - Exports an accountant ZIP, PDF index, and JSON backup you can import.
 - Keeps edits and exports working offline after the first visit.
-- Includes one packet free. A US$12 lifetime license adds unlimited packets and duplication.
+- Includes one complete packet and its core exports free. A US$12 lifetime license adds unlimited packets and duplication.
 
 The app does not upload packet contents automatically. The app contacts
 Sociobot only when you buy or verify a lifetime license. Clearing browser site
