@@ -3,7 +3,7 @@ import { createHash } from 'node:crypto';
 
 const html = await readFile('dist/index.html', 'utf8');
 const assets = [...html.matchAll(/(?:src|href)="(\/assets\/[^"]+)"/g)].map((match) => match[1]);
-const shell = ['/', '/demo', '/privacy', '/terms', '/index.html', '/offline.html', '/offline.css', '/manifest.webmanifest', '/favicon.svg', '/assets/deadline-packet-hero.webp', '/icons/icon-192.png', '/icons/icon-512.png', ...assets];
+const shell = ['/', '/demo', '/privacy', '/terms', '/index.html', '/offline.html', '/offline.css', '/manifest.webmanifest', '/favicon.svg', '/assets/deadline-packet-hero.webp', '/icons/apple-touch-icon.png', '/icons/icon-192.png', '/icons/icon-512.png', ...assets];
 const worker = await readFile('dist/sw.js', 'utf8');
 const buildId = `${Date.now().toString(36)}-${createHash('sha256').update(html).update(JSON.stringify(assets)).digest('hex').slice(0, 8)}`;
 await writeFile('dist/sw.js', worker

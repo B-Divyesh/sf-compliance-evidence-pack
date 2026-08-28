@@ -17,7 +17,7 @@ One-click demo: <https://compliance-evidence-pack.sociobot.in/demo>
 - Builds an evidence-gap list from the editable checklist.
 - Exports an accountant ZIP, PDF index, and JSON backup you can import.
 - Keeps edits and exports working offline after the first visit.
-- Includes one packet free. A US$12 one-time license adds unlimited packets and duplication.
+- Includes one packet free. A US$12 lifetime license adds unlimited packets and duplication.
 
 The app does not upload packet contents automatically. The app contacts
 Sociobot only when you buy or verify a lifetime license. Clearing browser site
@@ -27,9 +27,10 @@ data removes local packets, so keep an exported backup somewhere safe.
 
 Open `/demo` or `/?demo=1`. It opens an Apr–Jun cross-border packet with two
 sample files, four evidence gaps, and two accountant questions. Demo changes
-stay in a separate browser store named `deadline-packet-demo`. **Reset demo**
-restores the sample. **Start for real** deletes demo changes and opens your real
-workspace. See [the demo contract](./.factory/demo.md).
+stay in separate browser storage, including sample license state. Sample
+license activation never contacts Sociobot. **Reset demo** restores the sample.
+**Start for real** deletes demo changes and opens your real workspace. See
+[the demo contract](./.factory/demo.md).
 
 ## Run locally
 

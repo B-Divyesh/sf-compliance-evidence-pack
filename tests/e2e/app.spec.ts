@@ -59,47 +59,56 @@ test('creates and exports a complete local packet workflow', async ({ page }) =>
 });
 
 test('@claim:demo-isolation sample mode uses separate storage and reset never changes real packets', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Start your packet' }).click();
+  await page.getByLabel('Packet name').fill('Real packet marker');
+  await page.getByRole('button', { name: 'Create packet' }).click();
+  await page.evaluate(() => {
+    localStorage.setItem('sb_license:compliance-evidence-pack', 'real-license-marker');
+    localStorage.setItem('sb_license:compliance-evidence-pack:verdict', JSON.stringify({ valid: true, checkedAt: Date.now() }));
+  });
+  const snapshotRealState = async () => page.evaluate(async () => {
+    const database = await new Promise<IDBDatabase>((resolveDatabase, reject) => {
+      const open = indexedDB.open('deadline-packet');
+      open.onsuccess = () => resolveDatabase(open.result);
+      open.onerror = () => reject(open.error);
+    });
+    const packets = await new Promise<unknown[]>((resolveRows, reject) => {
+      const request = database.transaction('packets').objectStore('packets').getAll();
+      request.onsuccess = () => resolveRows(request.result);
+      request.onerror = () => reject(request.error);
+    });
+    database.close();
+    return {
+      packets,
+      storage: Object.fromEntries(Object.entries(localStorage).filter(([key]) => !key.startsWith('demo:'))),
+    };
+  });
+  const before = await snapshotRealState();
+  const requests: string[] = [];
+  page.on('request', (request) => requests.push(request.url()));
   await page.goto('/demo');
   await expect(page).toHaveTitle('Demo — Deadline Packet');
   await expect(page.getByLabel('Demo mode')).toContainText('Demo — sample data');
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Apr–Jun cross-border evidence');
-  await page.evaluate(async () => {
-    const database = await new Promise<IDBDatabase>((resolveDatabase, reject) => {
-      const open = indexedDB.open('deadline-packet');
-      open.onupgradeneeded = () => {
-        if (!open.result.objectStoreNames.contains('packets')) open.result.createObjectStore('packets', { keyPath: 'id' });
-      };
-      open.onsuccess = () => resolveDatabase(open.result);
-      open.onerror = () => reject(open.error);
-    });
-    await new Promise<void>((resolveWrite, reject) => {
-      const transaction = database.transaction('packets', 'readwrite');
-      transaction.objectStore('packets').put({ id: 'real-marker', name: 'Real packet marker' });
-      transaction.oncomplete = () => resolveWrite();
-      transaction.onerror = () => reject(transaction.error);
-    });
-    database.close();
-  });
+  await expect(page.getByText('Unlimited packets active')).toHaveCount(0);
+  await page.getByRole('button', { name: 'Activate sample license' }).click();
+  await expect(page.getByText('Unlimited packets active')).toBeVisible();
+  expect(await page.evaluate(() => localStorage.getItem('demo:sb_license:compliance-evidence-pack'))).toBe('deadline-packet-sample-license');
+  expect(await page.evaluate(() => localStorage.getItem('sb_license:compliance-evidence-pack'))).toBe('real-license-marker');
   await page.getByLabel('Business expense receipts').check();
   await page.getByRole('button', { name: 'Reset demo' }).click();
   await expect(page.getByLabel('Business expense receipts')).not.toBeChecked();
-  const databases = await page.evaluate(async () => {
-    const names = (await indexedDB.databases()).map((database) => database.name);
-    const real = await new Promise<IDBDatabase>((resolveDatabase, reject) => {
-      const open = indexedDB.open('deadline-packet');
-      open.onsuccess = () => resolveDatabase(open.result);
-      open.onerror = () => reject(open.error);
-    });
-    const marker = await new Promise<unknown>((resolveRecord, reject) => {
-      const request = real.transaction('packets').objectStore('packets').get('real-marker');
-      request.onsuccess = () => resolveRecord(request.result);
-      request.onerror = () => reject(request.error);
-    });
-    real.close();
-    return { names, marker };
-  });
-  expect(databases.names).toContain('deadline-packet-demo');
-  expect(databases.marker).toMatchObject({ name: 'Real packet marker' });
+  expect(await page.evaluate(() => localStorage.getItem('demo:sb_license:compliance-evidence-pack'))).toBeNull();
+  await page.getByRole('button', { name: 'Activate sample license' }).click();
+  await page.getByRole('button', { name: 'Start for real' }).click();
+  await expect(page).toHaveURL('http://127.0.0.1:4173/');
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Real packet marker');
+  await expect(page.getByText('Unlimited packets active')).toBeVisible();
+  expect(await snapshotRealState()).toEqual(before);
+  expect(await page.evaluate(() => Object.keys(localStorage).filter((key) => key.startsWith('demo:')))).toEqual([]);
+  expect((await page.evaluate(async () => (await indexedDB.databases()).map((database) => database.name)))).not.toContain('deadline-packet-demo');
+  expect(requests.filter((url) => new URL(url).origin === 'https://api.sociobot.in')).toEqual([]);
 });
 
 test('@claim:demo-seed the first demo screen shows the documented sample contents', async ({ page }) => {
@@ -107,6 +116,8 @@ test('@claim:demo-seed the first demo screen shows the documented sample content
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Apr–Jun cross-border evidence');
   await expect(page.locator('.summary-strip')).toContainText('2files attached');
   await expect(page.locator('.summary-strip')).toContainText('4evidence gaps');
+  await expect(page.locator('.summary-strip')).toContainText('1open question');
+  await expect(page.locator('.summary-strip')).not.toContainText('1open questions');
   await expect(page.locator('.question-list > li')).toHaveCount(2);
 });
 
@@ -183,6 +194,7 @@ test('@claim:missing-evidence the gap list follows checklist changes', async ({ 
 });
 
 test('@claim:offline-reload demo edits and ZIP export work after an offline reload', async ({ page, context }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/demo');
   await page.waitForFunction(async () => { await navigator.serviceWorker.ready; return true; });
   await page.reload();
@@ -201,8 +213,13 @@ test('@claim:offline-reload demo edits and ZIP export work after an offline relo
 test('@claim:free-and-paid one packet is free and a valid US$12 lifetime license enables another packet and duplication', async ({ page }) => {
   await page.route('**/api/v1/products/compliance-evidence-pack/verify?*', (route) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ valid: true, reason: 'ok', expires_at: null }) }));
   await page.goto('/demo');
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Apr–Jun cross-border evidence');
+  await page.getByRole('button', { name: 'Start for real' }).click();
+  await page.getByRole('button', { name: 'Start your packet' }).click();
+  await page.getByLabel('Packet name').fill('Free packet');
+  await page.getByRole('button', { name: 'Create packet' }).click();
   await page.getByRole('button', { name: 'Create another packet' }).click();
-  await expect(page.getByText('Unlimited packets require the one-time unlock')).toBeVisible();
+  await expect(page.getByText('Unlimited packets require a lifetime license')).toBeVisible();
   const buy = page.getByRole('link', { name: 'Buy a lifetime license' });
   await expect(buy).toHaveAttribute('href', 'https://api.sociobot.in/api/v1/products/compliance-evidence-pack/checkout');
   await expect(page.getByText('US$12 once.')).toBeVisible();
@@ -359,12 +376,14 @@ test('@claim:demo-exit Start for real removes demo changes without changing real
   await page.goto('/demo');
   await page.getByLabel('Question for your accountant').fill('Demo-only question');
   await page.getByRole('button', { name: 'Add question' }).click();
+  await page.getByRole('button', { name: 'Activate sample license' }).click();
   await expect(page.getByText('Demo-only question')).toBeVisible();
   await page.getByRole('button', { name: 'Start for real' }).click();
   await expect(page).toHaveURL('http://127.0.0.1:4173/');
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('My real packet');
   const stores = await page.evaluate(async () => (await indexedDB.databases()).map((database) => database.name));
   expect(stores).not.toContain('deadline-packet-demo');
+  expect(await page.evaluate(() => Object.keys(localStorage).filter((key) => key.startsWith('demo:')))).toEqual([]);
 });
 
 test('@claim:license-network-boundary only lifetime license actions use the Sociobot API', async ({ page }) => {
@@ -373,7 +392,10 @@ test('@claim:license-network-boundary only lifetime license actions use the Soci
   await page.goto('/demo');
   await page.getByLabel('Question for your accountant').fill('No network for packet edits');
   await page.getByRole('button', { name: 'Add question' }).click();
+  await page.getByRole('button', { name: 'Activate sample license' }).click();
   expect(requests.every((request) => new URL(request.url).origin === 'http://127.0.0.1:4173')).toBe(true);
+  await page.getByRole('button', { name: 'Start for real' }).click();
+  await expect(page.getByRole('link', { name: 'Buy a lifetime license' })).toHaveAttribute('href', 'https://api.sociobot.in/api/v1/products/compliance-evidence-pack/checkout');
   await page.route('**/api/v1/products/compliance-evidence-pack/verify?*', (route) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ valid: true }) }));
   await page.getByText('Restore a lifetime license').click();
   await page.getByLabel('License token').fill('network-boundary-token');
@@ -383,6 +405,38 @@ test('@claim:license-network-boundary only lifetime license actions use the Soci
   expect(sociobot).toHaveLength(1);
   expect(sociobot[0].url).toContain('/verify?license=network-boundary-token');
   expect(requests.every((request) => ['http://127.0.0.1:4173', 'https://api.sociobot.in'].includes(new URL(request.url).origin))).toBe(true);
+});
+
+test('@claim:license-local-storage a restored lifetime license stays in this browser until removed', async ({ page }) => {
+  await page.route('**/api/v1/products/compliance-evidence-pack/verify?*', (route) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ valid: true, reason: 'ok', expires_at: null }) }));
+  await page.goto('/demo');
+  await page.getByRole('button', { name: 'Start for real' }).click();
+  await expect(page).toHaveURL('http://127.0.0.1:4173/');
+  await page.goto('/privacy');
+  await expect(page.getByText('Your lifetime-license token and its last check stay in this browser until you remove the license.')).toBeVisible();
+  await page.goto('/');
+  await page.getByText('Restore a lifetime license').click();
+  await page.getByLabel('License token').fill('restored-license-token');
+  const verified = page.waitForResponse('**/api/v1/products/compliance-evidence-pack/verify?*');
+  await page.getByRole('button', { name: 'Verify and restore lifetime license' }).click();
+  await verified;
+  await expect(page.getByText('Unlimited packets active')).toBeVisible();
+  const stored = await page.evaluate(() => ({
+    token: localStorage.getItem('sb_license:compliance-evidence-pack'),
+    verdict: JSON.parse(localStorage.getItem('sb_license:compliance-evidence-pack:verdict') || 'null') as { valid: boolean; checkedAt: number } | null,
+  }));
+  expect(stored.token).toBe('restored-license-token');
+  expect(stored.verdict?.valid).toBe(true);
+  expect(stored.verdict?.checkedAt).toBeGreaterThan(0);
+  await page.reload();
+  await expect(page.getByText('Unlimited packets active')).toBeVisible();
+  await page.getByRole('button', { name: 'Remove from this device' }).click();
+  expect(await page.evaluate(() => ({
+    token: localStorage.getItem('sb_license:compliance-evidence-pack'),
+    verdict: localStorage.getItem('sb_license:compliance-evidence-pack:verdict'),
+  }))).toEqual({ token: null, verdict: null });
+  await page.reload();
+  await expect(page.getByText('Restore a lifetime license')).toBeVisible();
 });
 
 test('@claim:license-nonblocking a pending verification does not delay the workspace', async ({ page }) => {
@@ -428,6 +482,14 @@ test('route titles, designed 404, keyboard dialog, mobile layout, CSP, and acces
     await page.goto(route);
     await expect(page).toHaveTitle(title);
     await expect(page.locator('h1')).toHaveCount(1);
+    await expect(page.locator('meta[name="description"]')).toHaveAttribute('content', 'Organize one filing period’s invoices, receipts, evidence gaps, and questions for accountant review.');
+    await expect(page.locator('meta[property="og:title"]')).toHaveAttribute('content', title);
+    await expect(page.locator('meta[property="og:description"]')).toHaveAttribute('content', 'Prepare invoices, receipts, evidence gaps, and questions for accountant review.');
+    await expect(page.locator('link[rel="canonical"]')).toHaveAttribute('href', `https://compliance-evidence-pack.sociobot.in${route}`);
+    await expect(page.getByLabel('Primary navigation').getByRole('link', { name: 'Privacy' })).toBeVisible();
+    await expect(page.getByLabel('Primary navigation').getByRole('link', { name: 'Terms' })).toBeVisible();
+    await expect(page.locator('footer').getByRole('link', { name: 'Privacy' })).toBeVisible();
+    await expect(page.locator('footer').getByRole('link', { name: 'Terms' })).toBeVisible();
     const axe = await new AxeBuilder({ page }).analyze();
     expect(axe.violations.filter((issue) => ['serious', 'critical'].includes(issue.impact || ''))).toEqual([]);
   }
@@ -437,6 +499,9 @@ test('route titles, designed 404, keyboard dialog, mobile layout, CSP, and acces
   await page.goto('/misfiled-page');
   await expect(page).toHaveTitle('Page not found — Deadline Packet');
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('This page is not in the packet.');
+  await expect(page.locator('meta[property="og:title"]')).toHaveAttribute('content', 'Page not found — Deadline Packet');
+  await expect(page.locator('footer').getByRole('link', { name: 'Privacy' })).toBeVisible();
+  await expect(page.locator('footer').getByRole('link', { name: 'Terms' })).toBeVisible();
   await page.setViewportSize({ width: 390, height: 844 });
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.goto('/');

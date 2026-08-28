@@ -34,8 +34,8 @@ export function makePdf(packet: Packet, files: EvidenceFile[]): Uint8Array {
     `EVIDENCE FILES (${files.length})`,
     ...files.flatMap((file, index) => wrap(`${index + 1}. [${file.category}] ${file.name}${file.note ? ` - ${file.note}` : ''}`)),
     '',
-    `MISSING EVIDENCE (${missing.length})`,
-    ...(missing.length ? missing.flatMap((item) => wrap(`- ${item.label}`)) : ['None marked missing.']),
+    `EVIDENCE GAPS (${missing.length})`,
+    ...(missing.length ? missing.flatMap((item) => wrap(`- ${item.label}`)) : ['No evidence gaps.']),
     '',
     `OPEN QUESTIONS (${openQuestions.length})`,
     ...(openQuestions.length ? openQuestions.flatMap((question) => wrap(`- ${question.text}`)) : ['None.']),
@@ -79,7 +79,7 @@ function makeIndexHtml(packet: Packet, files: EvidenceFile[]): string {
   const missing = packet.checklist.filter((item) => !item.complete);
   const questions = packet.questions.filter((item) => !item.answered);
   const list = (values: string[], empty: string) => values.length ? `<ol>${values.map((value) => `<li>${escapeHtml(value)}</li>`).join('')}</ol>` : `<p>${empty}</p>`;
-  return `<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>${escapeHtml(packet.name)} — evidence index</title><style>body{font:16px/1.55 system-ui;max-width:760px;margin:48px auto;padding:0 24px;color:#152126}h1{font-size:2.5rem;border-bottom:6px solid #2aa8a2;padding-bottom:16px}h2{margin-top:32px}small{color:#536469}@media print{body{margin:0}a{color:inherit}}</style><main><p><small>ACCOUNTANT HANDOFF / ${escapeHtml(packet.periodStart)}—${escapeHtml(packet.periodEnd)}</small></p><h1>${escapeHtml(packet.name)}</h1><p><strong>Deadline:</strong> ${escapeHtml(formatDate(packet.deadline))}<br><strong>Contact:</strong> ${escapeHtml(packet.accountant || 'Not specified')}</p><h2>Evidence files (${files.length})</h2>${list(files.map((file) => `[${file.category}] ${file.name}${file.note ? ` — ${file.note}` : ''}`), 'No files included.')}<h2>Missing evidence (${missing.length})</h2>${list(missing.map((item) => item.label), 'Nothing marked missing.')}<h2>Open questions (${questions.length})</h2>${list(questions.map((item) => item.text), 'No open questions.')}<h2>Packet note</h2><p>${escapeHtml(packet.note || 'No additional note.')}</p><hr><p><small>Prepared locally with Deadline Packet. Organizational index only; not tax, legal, or filing advice.</small></p></main></html>`;
+  return `<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>${escapeHtml(packet.name)} — evidence index</title><style>body{font:16px/1.55 system-ui;max-width:760px;margin:48px auto;padding:0 24px;color:#152126}h1{font-size:2.5rem;border-bottom:6px solid #2aa8a2;padding-bottom:16px}h2{margin-top:32px}small{color:#536469}@media print{body{margin:0}a{color:inherit}}</style><main><p><small>ACCOUNTANT HANDOFF / ${escapeHtml(packet.periodStart)}—${escapeHtml(packet.periodEnd)}</small></p><h1>${escapeHtml(packet.name)}</h1><p><strong>Deadline:</strong> ${escapeHtml(formatDate(packet.deadline))}<br><strong>Contact:</strong> ${escapeHtml(packet.accountant || 'Not specified')}</p><h2>Evidence files (${files.length})</h2>${list(files.map((file) => `[${file.category}] ${file.name}${file.note ? ` — ${file.note}` : ''}`), 'No files included.')}<h2>Evidence gaps (${missing.length})</h2>${list(missing.map((item) => item.label), 'No evidence gaps.')}<h2>Open questions (${questions.length})</h2>${list(questions.map((item) => item.text), 'No open questions.')}<h2>Packet note</h2><p>${escapeHtml(packet.note || 'No additional note.')}</p><hr><p><small>Prepared locally with Deadline Packet. Organizational index only; not tax, legal, or filing advice.</small></p></main></html>`;
 }
 
 export async function makeZip(packet: Packet, files: EvidenceFile[]): Promise<Blob> {

@@ -31,7 +31,7 @@ describe('accountant exports', () => {
   it('builds a valid PDF with packet labels', () => {
     const pdf = makePdf(packet, []);
     expect(new TextDecoder().decode(pdf.slice(0, 8))).toBe('%PDF-1.4');
-    expect(new TextDecoder().decode(pdf)).toContain('MISSING EVIDENCE');
+    expect(new TextDecoder().decode(pdf)).toContain('EVIDENCE GAPS');
   });
 
   it('builds a ZIP containing both human-readable indexes', async () => {

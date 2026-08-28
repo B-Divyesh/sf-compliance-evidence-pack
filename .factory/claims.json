@@ -1,10 +1,10 @@
 [
   {
     "id": "demo-isolation",
-    "claim": "The sample demo uses separate storage and never changes real packets.",
+    "claim": "The demo uses separate packet and license storage, never contacts Sociobot, and never changes real packets or licenses.",
     "where": "demo banner, README, .factory/demo.md",
     "test": "npm run test:e2e -- --grep @claim:demo-isolation",
-    "sandbox": "fresh Chromium context; open /demo; create a real-database marker; edit and reset demo; assert the marker is unchanged and the demo database is separate"
+    "sandbox": "fresh Chromium context; create and snapshot a real packet plus real license keys; open /demo; activate a canned sample license, edit, reset, activate again, and exit; assert the real snapshot is byte-identical, all demo stores are removed, and no Sociobot request occurs"
   },
   {
     "id": "demo-seed",
@@ -96,6 +96,13 @@
     "where": "privacy page, README",
     "test": "npm run test:e2e -- --grep @claim:license-network-boundary",
     "sandbox": "fresh Chromium context; exercise an unlicensed demo flow, inspect the checkout destination, then verify a saved token while capturing requests and assert only the Sociobot verification endpoint receives the token"
+  },
+  {
+    "id": "license-local-storage",
+    "claim": "Your lifetime-license token and its last check stay in this browser until you remove the license.",
+    "where": "privacy page",
+    "test": "npm run test:e2e -- --grep @claim:license-local-storage",
+    "sandbox": "fresh Chromium context entered through /demo; leave demo, restore a mocked valid license in the real workspace, inspect both real storage keys, reload, remove the license, and assert both keys are gone"
   },
   {
     "id": "editable-handoff-date",

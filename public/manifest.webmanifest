@@ -2,7 +2,7 @@
   "id": "/?source=installed",
   "name": "Deadline Packet",
   "short_name": "Packet",
-  "description": "Prepare accountant-ready evidence packets privately, on your device.",
+  "description": "Organize filing-period evidence and questions for accountant review.",
   "start_url": "/?v=2",
   "scope": "/",
   "display": "standalone",

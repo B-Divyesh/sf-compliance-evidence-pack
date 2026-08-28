@@ -1,7 +1,12 @@
 const SLUG = 'compliance-evidence-pack';
-const TOKEN_KEY = `sb_license:${SLUG}`;
-const VERDICT_KEY = `${TOKEN_KEY}:verdict`;
+const REAL_TOKEN_KEY = `sb_license:${SLUG}`;
+const REAL_VERDICT_KEY = `${REAL_TOKEN_KEY}:verdict`;
+const DEMO_TOKEN_KEY = `demo:${REAL_TOKEN_KEY}`;
+const DEMO_VERDICT_KEY = `${DEMO_TOKEN_KEY}:verdict`;
 const VERIFY_AFTER = 86_400_000;
+const demoLicenseMode = location.pathname === '/demo' || new URLSearchParams(location.search).get('demo') === '1';
+const TOKEN_KEY = demoLicenseMode ? DEMO_TOKEN_KEY : REAL_TOKEN_KEY;
+const VERDICT_KEY = demoLicenseMode ? DEMO_VERDICT_KEY : REAL_VERDICT_KEY;
 
 type Verdict = { valid: boolean; checkedAt: number };
 
@@ -35,6 +40,12 @@ export async function verifyLicense(force = false): Promise<boolean> {
   let cached: Verdict | null = null;
   try { cached = JSON.parse(localStorage.getItem(VERDICT_KEY) || 'null') as Verdict | null; } catch { /* ignore corrupt cache */ }
   if (!force && cached && Date.now() - cached.checkedAt < VERIFY_AFTER) return cached.valid;
+  // Demo activation is deliberately local and canned. It must never send a
+  // sample token—or a real token accidentally pasted into the demo—off origin.
+  if (demoLicenseMode) {
+    localStorage.setItem(VERDICT_KEY, JSON.stringify({ valid: true, checkedAt: Date.now() }));
+    return true;
+  }
   try {
     const response = await fetch(`https://api.sociobot.in/api/v1/products/${SLUG}/verify?license=${encodeURIComponent(token)}`);
     if (!response.ok) throw new Error('Verification was unavailable');
@@ -54,4 +65,9 @@ export function restoreLicense(token: string): void {
 export function removeLicense(): void {
   localStorage.removeItem(TOKEN_KEY);
   localStorage.removeItem(VERDICT_KEY);
+}
+
+export function clearDemoLicense(): void {
+  localStorage.removeItem(DEMO_TOKEN_KEY);
+  localStorage.removeItem(DEMO_VERDICT_KEY);
 }

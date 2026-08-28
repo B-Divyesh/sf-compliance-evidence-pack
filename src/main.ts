@@ -2,7 +2,7 @@ import './styles.css';
 import { clearLocalData, deleteFile, deletePacket, demoMode, getFiles, getPackets, putFile, putImportedPacket, putPacket, takeCorruptRowRecoveryNotice } from './db';
 import { parseBackup } from './backup';
 import { makeBackup, makePdf, makeZip } from './export';
-import { captureLicense, checkoutUrl, hasUnlock, lifetimePrice, removeLicense, restoreLicense, verifyLicense } from './license';
+import { captureLicense, checkoutUrl, clearDemoLicense, hasUnlock, lifetimePrice, removeLicense, restoreLicense, verifyLicense } from './license';
 import type { EvidenceFile, Packet } from './types';
 import { daysUntil, download, escapeHtml, formatBytes, formatDate, safeFilename, uid } from './utils';
 
@@ -35,10 +35,18 @@ const pageTitles: Record<string, string> = {
   '/terms': 'Terms — Deadline Packet',
 };
 
+const metaDescription = 'Organize one filing period’s invoices, receipts, evidence gaps, and questions for accountant review.';
+const socialDescription = 'Prepare invoices, receipts, evidence gaps, and questions for accountant review.';
+
 function setTitle(path: string, packet?: Packet): void {
   document.title = packet ? `${packet.name} — Deadline Packet` : (pageTitles[path] ?? 'Page not found — Deadline Packet');
   const canonical = document.querySelector<HTMLLinkElement>('link[rel="canonical"]');
   if (canonical) canonical.href = `https://compliance-evidence-pack.sociobot.in${path === '/' ? '/' : path}`;
+  document.querySelector<HTMLMetaElement>('meta[name="description"]')?.setAttribute('content', metaDescription);
+  document.querySelector<HTMLMetaElement>('meta[property="og:title"]')?.setAttribute('content', document.title);
+  document.querySelector<HTMLMetaElement>('meta[property="og:description"]')?.setAttribute('content', socialDescription);
+  document.querySelector<HTMLMetaElement>('meta[name="twitter:title"]')?.setAttribute('content', document.title);
+  document.querySelector<HTMLMetaElement>('meta[name="twitter:description"]')?.setAttribute('content', socialDescription);
 }
 
 function announce(message: string, action?: { label: string; run: () => void }): void {
@@ -169,7 +177,13 @@ function networkState(): void {
 }
 
 function licenseCard(compact = false): string {
-  if (unlocked) return `<section class="unlock-card unlocked" aria-label="Lifetime license active"><p class="eyebrow">Lifetime license</p><p><strong>Unlimited packets active</strong></p><button class="text-button" id="remove-license" type="button">Remove from this device</button></section>`;
+  if (unlocked) return `<section class="unlock-card unlocked" aria-label="${demoMode ? 'Sample lifetime license active' : 'Lifetime license active'}"><p class="eyebrow">${demoMode ? 'Sample lifetime license' : 'Lifetime license'}</p><p><strong>Unlimited packets active</strong></p><button class="text-button" id="remove-license" type="button">${demoMode ? 'Remove sample license' : 'Remove from this device'}</button></section>`;
+  if (demoMode) return `<section class="unlock-card demo-license ${compact ? 'compact' : ''}" aria-labelledby="demo-license-title">
+    <p class="eyebrow">Sample lifetime license</p>
+    <h2 id="demo-license-title">Try unlimited packet controls</h2>
+    <p>This sample activation stays in the demo and never contacts Sociobot.</p>
+    <button class="button small" id="activate-demo-license" type="button">Activate sample license</button>
+  </section>`;
   return `<section class="unlock-card ${compact ? 'compact' : ''}" aria-labelledby="unlock-title">
     <p class="eyebrow">Lifetime license</p>
     <h2 id="unlock-title">Keep every filing period</h2>
@@ -186,7 +200,7 @@ function createDialog(): string {
   const start = new Date(today.getFullYear(), today.getMonth() - 3, 1).toISOString().slice(0, 10);
   const deadline = new Date(today.getTime() + 30 * 86_400_000).toISOString().slice(0, 10);
   return `<dialog id="create-dialog" aria-labelledby="create-title"><form method="dialog" class="dialog-form" id="create-form">
-    <div class="dialog-heading"><div><p class="eyebrow">New filing folder</p><h2 id="create-title">Start a packet</h2></div><button class="icon-button" value="cancel" aria-label="Close dialog">×</button></div>
+    <div class="dialog-heading"><div><p class="eyebrow">New packet</p><h2 id="create-title">Start a packet</h2></div><button class="icon-button" value="cancel" aria-label="Close dialog">×</button></div>
     <label for="packet-name">Packet name <span aria-hidden="true">*</span></label><input id="packet-name" name="name" required maxlength="80" placeholder="Example: Jan–Mar evidence">
     <div class="field-grid"><div><label for="period-start">Period starts <span aria-hidden="true">*</span></label><input type="date" id="period-start" name="periodStart" value="${start}" required></div><div><label for="period-end">Period ends <span aria-hidden="true">*</span></label><input type="date" id="period-end" name="periodEnd" value="${end}" required></div></div>
     <label for="deadline">Your handoff deadline <span aria-hidden="true">*</span></label><input type="date" id="deadline" name="deadline" value="${deadline}" required><p class="field-help">Use the date you want the packet with your accountant—not a statutory deadline.</p>
@@ -267,7 +281,7 @@ function dashboard(packet: Packet, files: EvidenceFile[]): string {
   return `<div class="app-layout"><article class="packet-workbench">
     <header class="packet-heading"><div><p class="eyebrow">${escapeHtml(packet.periodStart)} — ${escapeHtml(packet.periodEnd)}</p><h1>${escapeHtml(packet.name)}</h1><p class="due-line"><span aria-hidden="true"></span>${escapeHtml(daysLabel(packet.deadline))} · ${formatDate(packet.deadline)}</p></div><div class="completion-stamp"><strong>${percent}%</strong><span>${complete} of ${total} evidence groups ready</span></div></header>
     <progress class="progress-track" aria-label="Packet checklist completion" max="100" value="${percent}">${percent}%</progress>
-    <section class="summary-strip" aria-label="Packet summary"><div><strong>${files.length}</strong><span>files attached</span></div><div class="attention"><strong>${missing.length}</strong><span>evidence gaps</span></div><div><strong>${openQuestions.length}</strong><span>open questions</span></div><div><strong>${packet.accountant ? '1' : '—'}</strong><span>${packet.accountant ? escapeHtml(packet.accountant) : 'contact not set'}</span></div></section>
+    <section class="summary-strip" aria-label="Packet summary"><div><strong>${files.length}</strong><span>files attached</span></div><div class="attention"><strong>${missing.length}</strong><span>evidence gaps</span></div><div><strong>${openQuestions.length}</strong><span>${openQuestions.length === 1 ? 'open question' : 'open questions'}</span></div><div><strong>${packet.accountant ? '1' : '—'}</strong><span>${packet.accountant ? escapeHtml(packet.accountant) : 'contact not set'}</span></div></section>
     <div class="work-grid">
       <section class="paper-panel evidence-checklist" aria-labelledby="checklist-title"><div class="section-heading"><div><p class="folio">01 / Evidence map</p><h2 id="checklist-title">What should be in the packet?</h2></div><span class="section-count">${complete}/${total}</span></div>
         <ul class="checklist">${packet.checklist.map((item) => `<li class="${item.complete ? 'is-complete' : ''}"><label><input type="checkbox" data-check="${item.id}" ${item.complete ? 'checked' : ''}><span class="custom-check" aria-hidden="true"></span><span><strong>${escapeHtml(item.label)}</strong><small>${item.complete ? 'Ready for review' : 'Still needed'}</small></span></label>${item.custom ? `<button class="row-delete" type="button" data-delete-check="${item.id}" aria-label="Remove ${escapeHtml(item.label)}">×</button>` : ''}</li>`).join('')}</ul>
@@ -292,7 +306,7 @@ function dashboard(packet: Packet, files: EvidenceFile[]): string {
 }
 
 function legalPage(kind: 'privacy' | 'terms'): string {
-  if (kind === 'privacy') return `<article class="legal"><p class="eyebrow">Plain-language policy · 28 August 2026</p><h1>Privacy, without fine print.</h1><p class="lede">Deadline Packet keeps packet details in this browser.</p><h2>What is stored</h2><p>Packet names, dates, checklist states, questions, notes, and attachments stay in this browser. When supported, your browser encrypts attached files before storing them. A lifetime-license token and its last verification result stay in localStorage. We do not run analytics or advertising trackers.</p><h2>What leaves your device</h2><p>Your evidence never leaves automatically. The app contacts Sociobot only when you buy or verify a lifetime license. Checkout opens on Sociobot/Dodo. Export creates a download on your device.</p><h2>Retention and control</h2><p>Data remains until you delete a packet, clear this site’s browser storage, or uninstall it and clear its data. Export a JSON backup or accountant ZIP before clearing storage. We cannot recover local data or a browser key after it is cleared.</p><h2>Network and offline use</h2><p>The app shell is cached by a service worker. Once opened, packet work remains available offline. License verification never blocks the free experience.</p><a class="text-link" href="/" data-route>← Return to your packets</a></article>`;
+  if (kind === 'privacy') return `<article class="legal"><p class="eyebrow">Plain-language policy · 28 August 2026</p><h1>Privacy, without fine print.</h1><p class="lede">Deadline Packet keeps packet details in this browser.</p><h2>What is stored</h2><p>Packet names, dates, checklist states, questions, notes, and attachments stay in this browser. When supported, your browser encrypts attached files before storing them. Your lifetime-license token and its last check stay in this browser until you remove the license. We do not run analytics or advertising trackers.</p><h2>What leaves your device</h2><p>Your evidence never leaves automatically. The app contacts Sociobot only when you buy or verify a lifetime license. Checkout opens on Sociobot/Dodo. Export creates a download on your device.</p><h2>Retention and control</h2><p>Data remains until you delete a packet, clear this site’s browser storage, or uninstall it and clear its data. Export a JSON backup or accountant ZIP before clearing storage. We cannot recover local data or a browser key after it is cleared.</p><h2>Network and offline use</h2><p>The app shell is cached by a service worker. Once opened, packet work remains available offline. License verification never blocks the free experience.</p><a class="text-link" href="/" data-route>← Return to your packets</a></article>`;
   return `<article class="legal"><p class="eyebrow">Terms · 28 August 2026</p><h1>A preparation tool, not a filing service.</h1><p class="lede">By using Deadline Packet, you agree to use it as an organizational aid for human review.</p><h2>No professional advice</h2><p>The app does not calculate tax, determine legal requirements, validate document sufficiency, submit returns, or run OCR. It does not provide tax, accounting, or legal advice. Deadlines are dates you enter. Confirm all requirements with a qualified professional.</p><h2>Your data and exports</h2><p>You control the content you add and are responsible for lawful handling, backups, and secure delivery of exports. The software is provided as-is under the MIT License.</p><h2>Lifetime license</h2><p>${lifetimePrice} is a one-time purchase for unlimited packets and packet duplication in this product. Checkout opens on Sociobot/Dodo. Core exports and your first complete packet do not require purchase.</p><h2>Acceptable use</h2><p>Do not use the service or billing verification endpoint unlawfully, attempt to disrupt it, or misrepresent generated indexes as official filings.</p><a class="text-link" href="/" data-route>← Return to your packets</a></article>`;
 }
 
@@ -360,7 +374,7 @@ function bindCommon(): void {
   document.querySelectorAll<HTMLButtonElement>('.create-button').forEach((button) => button.onclick = () => {
     if (packets.length >= 1 && !unlocked) {
       document.querySelector<HTMLElement>('.unlock-card')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      announce('Unlimited packets require the one-time unlock. Your current packet stays fully usable.');
+      announce(`Unlimited packets require a lifetime license. ${demoMode ? 'Activate the sample license to try them.' : 'Your current packet stays fully usable.'}`);
       return;
     }
     document.querySelector<HTMLDialogElement>('#create-dialog')?.showModal();
@@ -414,11 +428,17 @@ function bindCommon(): void {
     await render();
     const valid = await verifyLicense(true);
     unlocked = valid;
-    announce(valid ? 'Lifetime unlock restored.' : 'That license is not active for Deadline Packet.');
+    announce(valid ? 'Lifetime license restored.' : 'That license is not active for Deadline Packet.');
+    await render();
+  });
+  document.querySelector<HTMLButtonElement>('#activate-demo-license')?.addEventListener('click', async () => {
+    restoreLicense('deadline-packet-sample-license');
+    unlocked = await verifyLicense(true);
+    announce('Sample lifetime license activated. Demo changes still stay separate.');
     await render();
   });
   document.querySelector<HTMLButtonElement>('#remove-license')?.addEventListener('click', () => {
-    removeLicense(); unlocked = false; announce('License removed from this device.'); render();
+    removeLicense(); unlocked = false; announce(demoMode ? 'Sample lifetime license removed.' : 'License removed from this device.'); render();
   });
   const importButton = document.querySelector<HTMLButtonElement>('#import-button');
   const importInput = document.querySelector<HTMLInputElement>('#import-input');
@@ -530,6 +550,7 @@ async function start(): Promise<void> {
   if (!demoMode) {
     indexedDB.deleteDatabase('deadline-packet-demo');
     localStorage.removeItem('demo:deadline-packet:current');
+    clearDemoLicense();
   }
   captureLicense();
   unlocked = hasUnlock();
@@ -546,6 +567,8 @@ async function start(): Promise<void> {
     document.querySelector<HTMLAnchorElement>('.brand')?.setAttribute('href', '/demo');
     document.querySelector<HTMLButtonElement>('#reset-demo')?.addEventListener('click', async () => {
       await clearLocalData();
+      removeLicense();
+      unlocked = false;
       await seedDemo();
       packets = await getPackets();
       announce('Sample data reset.');
@@ -554,6 +577,7 @@ async function start(): Promise<void> {
     document.querySelector<HTMLButtonElement>('#start-real')?.addEventListener('click', async () => {
       await clearLocalData();
       localStorage.removeItem(currentKey);
+      removeLicense();
       location.assign('/');
     });
   }
@@ -562,7 +586,7 @@ async function start(): Promise<void> {
   document.body.classList.add('app-ready');
   networkState();
   verifyLicense().then(async (valid) => {
-    if (valid !== unlocked) { unlocked = valid; announce(valid ? 'Lifetime unlock verified.' : 'License no longer active. Free packet access remains available.'); await render(); }
+    if (valid !== unlocked) { unlocked = valid; announce(valid ? 'Lifetime license verified.' : 'License no longer active. Free packet access remains available.'); await render(); }
   });
 }
 

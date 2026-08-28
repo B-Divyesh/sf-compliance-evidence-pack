@@ -1,5 +1,5 @@
 const VERSION = 'deadline-packet-v2';
-const SHELL = ['/', '/demo', '/privacy', '/terms', '/index.html', '/offline.html', '/offline.css', '/manifest.webmanifest', '/favicon.svg', '/assets/deadline-packet-hero.webp', '/icons/icon-192.png', '/icons/icon-512.png'];
+const SHELL = ['/', '/demo', '/privacy', '/terms', '/index.html', '/offline.html', '/offline.css', '/manifest.webmanifest', '/favicon.svg', '/assets/deadline-packet-hero.webp', '/icons/apple-touch-icon.png', '/icons/icon-192.png', '/icons/icon-512.png'];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(caches.open(VERSION).then((cache) => Promise.all(SHELL.map(async (url) => {

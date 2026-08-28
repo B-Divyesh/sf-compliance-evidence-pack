@@ -18,14 +18,15 @@ files. Files contain explicit sample text and no real person’s data.
 ## Isolation and reset
 
 Demo changes stay in a separate browser store named `deadline-packet-demo` and
-use the localStorage key prefix `demo:`. Real work uses a different browser
-store and non-demo current-packet key. Demo mode never reads or writes real
-packet stores.
+use browser keys prefixed with `demo:`. This includes the optional sample
+lifetime-license state. Sample license activation uses a canned local result
+and never contacts Sociobot. Real work uses a different browser store and
+unprefixed keys. Demo mode never reads or writes real packet or license stores.
 
 The persistent banner identifies demo mode. **Reset demo** clears only demo
-stores and reseeds the original sample. **Start for real** deletes demo changes
-before loading the real workspace. Browser-context teardown also provides a
-clean verifier sandbox.
+stores, including the sample license, and reseeds the original packet.
+**Start for real** deletes every demo change before loading the real workspace.
+Browser-context teardown also provides a clean verifier sandbox.
 
 ## Claim verification
 
