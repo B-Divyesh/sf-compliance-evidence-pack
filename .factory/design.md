@@ -37,7 +37,7 @@ uppercase with deliberately tight tracking, like a sign painter's block
 lettering. Body and controls use Inter-compatible system sans
 (`ui-sans-serif`, `Segoe UI`, sans-serif), avoiding a font download entirely.
 Dates, folios, amounts, and eyebrow labels use `ui-monospace` with tabular
-figures. Type steps: 14, 16, 20, 28, and clamp(40–72) px. Body is never below
+figures. Type steps: 16, 20, 28, 36, and clamp(40–72) px. Body is never below
 16 px. Reading measure tops out near 68 characters.
 
 Spacing follows an 8 px rhythm with 4 px optical adjustments: 4, 8, 12, 16,

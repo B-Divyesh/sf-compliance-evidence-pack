@@ -1,10 +1,12 @@
 import type { EvidenceFile, Packet } from './types';
+import { isValidPacket } from './backup';
 
 export const demoMode = location.pathname === '/demo' || new URLSearchParams(location.search).get('demo') === '1';
 export const DB_NAME = demoMode ? 'deadline-packet-demo' : 'deadline-packet';
 const DB_VERSION = 2;
 
 type StoredFile = EvidenceFile & { encrypted?: boolean; iv?: number[] };
+let recoveredCorruptRows = false;
 
 function request<T>(req: IDBRequest<T>): Promise<T> {
   return new Promise((resolve, reject) => {
@@ -52,8 +54,32 @@ async function write(name: 'packets' | 'files' | 'keys', operation: (objectStore
 }
 
 export async function getPackets(): Promise<Packet[]> {
-  const rows = await request((await store('packets')).getAll() as IDBRequest<Packet[]>);
-  return rows.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+  const objectStore = await store('packets');
+  const rows = await request(objectStore.getAll() as IDBRequest<unknown[]>);
+  objectStore.transaction.db.close();
+  const invalidIds = rows.filter((row): row is { id: string } => !isValidPacket(row) && typeof (row as { id?: unknown }).id === 'string').map((row) => row.id);
+  if (invalidIds.length) {
+    const database = await open();
+    const transaction = database.transaction(['packets', 'files'], 'readwrite');
+    for (const id of invalidIds) {
+      transaction.objectStore('packets').delete(id);
+      const index = transaction.objectStore('files').index('packetId');
+      index.openCursor(IDBKeyRange.only(id)).onsuccess = (event) => {
+        const cursor = (event.target as IDBRequest<IDBCursorWithValue | null>).result;
+        if (cursor) { cursor.delete(); cursor.continue(); }
+      };
+    }
+    await complete(transaction);
+    database.close();
+    recoveredCorruptRows = true;
+  }
+  return rows.filter(isValidPacket).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+}
+
+export function takeCorruptRowRecoveryNotice(): boolean {
+  const recovered = recoveredCorruptRows;
+  recoveredCorruptRows = false;
+  return recovered;
 }
 
 export async function putPacket(packet: Packet): Promise<void> {
@@ -80,15 +106,31 @@ export async function getFiles(packetId: string): Promise<EvidenceFile[]> {
 }
 
 export async function putFile(file: EvidenceFile): Promise<void> {
-  const key = await getDeviceKey();
-  if (!key) {
-    await write('files', (objectStore) => { objectStore.put(file); });
-    return;
-  }
+  const stored = await storedFile(file);
+  await write('files', (objectStore) => { objectStore.put(stored); });
+}
+
+async function storedFile(file: EvidenceFile, existingKey?: CryptoKey | null): Promise<StoredFile> {
+  const key = existingKey === undefined ? await getDeviceKey() : existingKey;
+  if (!key) return file;
   const iv = crypto.getRandomValues(new Uint8Array(12));
   const encrypted = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, await file.blob.arrayBuffer());
-  const stored: StoredFile = { ...file, blob: new Blob([encrypted]), encrypted: true, iv: [...iv] };
-  await write('files', (objectStore) => { objectStore.put(stored); });
+  return { ...file, blob: new Blob([encrypted]), encrypted: true, iv: [...iv] };
+}
+
+/** Writes an already-validated backup as one packet/files transaction. */
+export async function putImportedPacket(packet: Packet, files: EvidenceFile[]): Promise<void> {
+  // One key is deliberately shared for this batch. Parallel lazy key creation
+  // can otherwise encrypt sibling imported files with different device keys.
+  const key = await getDeviceKey();
+  const storedFiles = await Promise.all(files.map((file) => storedFile(file, key)));
+  const database = await open();
+  const transaction = database.transaction(['packets', 'files'], 'readwrite');
+  transaction.objectStore('packets').put(packet);
+  const fileStore = transaction.objectStore('files');
+  storedFiles.forEach((file) => fileStore.put(file));
+  await complete(transaction);
+  database.close();
 }
 
 export async function deleteFile(id: string): Promise<void> {

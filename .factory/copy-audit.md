@@ -17,7 +17,7 @@ used only for the literal paid license state below the first screen.
 | Data stays in this browser. | 5 | Pass |
 | Works offline after your first visit. | 6 | Pass |
 | One packet free. | 3 | Pass |
-| Unlimited use costs US$19 once. | 5 | Pass |
+| Unlimited use costs US$12 once. | 5 | Pass |
 | Import a JSON backup | 4 | Pass |
 | From scattered evidence to one reviewable handoff. | 8 | Pass |
 | Set the period | 3 | Pass |
@@ -34,7 +34,7 @@ used only for the literal paid license state below the first screen.
 | Attachments included in your ZIP | 5 | Pass |
 | Missing evidence listed automatically | 4 | Pass |
 | Open questions kept beside the files | 6 | Pass |
-| US$19 once. | 2 | Pass |
+| US$12 once. | 2 | Pass |
 | Your first complete packet is free; unlimited packets and duplication require the lifetime license. | 14 | Pass |
 
 ## Terminology

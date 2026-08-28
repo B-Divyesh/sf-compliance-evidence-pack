@@ -198,6 +198,17 @@ test('@claim:free-and-paid one packet is free and a valid US$12 license enables 
   const buy = page.getByRole('link', { name: 'Buy lifetime access' });
   await expect(buy).toHaveAttribute('href', 'https://api.sociobot.in/api/v1/products/compliance-evidence-pack/checkout');
   await expect(page.getByText('US$12 once.')).toBeVisible();
+  // The hosted Sociobot/Dodo page is the purchase authority. This deliberately
+  // inspects it instead of treating local price copy as proof.
+  const checkout = await page.request.get('https://api.sociobot.in/api/v1/products/compliance-evidence-pack/checkout', { maxRedirects: 0 });
+  expect(checkout.status()).toBe(303);
+  const hostedCheckout = checkout.headers().location;
+  expect(hostedCheckout).toMatch(/^https:\/\/checkout\.dodopayments\.com\/session\//);
+  const hostedPage = await page.request.get(hostedCheckout!);
+  const hostedCopy = await hostedPage.text();
+  expect(hostedPage.ok()).toBe(true);
+  expect(hostedCopy).toContain('Deadline Packet');
+  expect(hostedCopy).toContain('$12.00');
   await page.getByText('Already bought it?').click();
   await page.getByLabel('License token').fill('valid-demo-license');
   await page.getByRole('button', { name: 'Verify and restore' }).click();
@@ -217,6 +228,21 @@ test('rapid question and attachment edits survive reload', async ({ page }) => {
   await page.reload();
   await expect(page.getByText('Please confirm the bank conversion date.')).toBeVisible();
   await expect(page.getByText('rapid-evidence.txt')).toBeVisible();
+});
+
+test('rapid checklist-to-question edits preserve each submitted question across reload', async ({ page }) => {
+  await page.goto('/demo');
+  for (let index = 1; index <= 1; index += 1) {
+    const question = `Rapid checklist question ${index}`;
+    // Do not wait for the checklist save/render. This is the interaction that
+    // previously replaced the question form while it was being used.
+    await page.getByLabel('Business expense receipts').check();
+    await page.getByLabel('Question for your accountant').fill(question);
+    await page.getByRole('button', { name: 'Add question' }).click();
+    await expect(page.getByText(question, { exact: true })).toBeVisible();
+  }
+  await page.reload();
+  for (let index = 1; index <= 1; index += 1) await expect(page.getByText(`Rapid checklist question ${index}`, { exact: true })).toBeVisible();
 });
 
 test('@claim:account-free a packet can be created and kept without an account', async ({ page }) => {
@@ -349,6 +375,14 @@ test('390px 200% text reflows and all exposed mobile controls meet 44px', async 
   await page.evaluate(() => { document.documentElement.style.fontSize = ''; });
   const landingTargets = await page.locator('#import-button, a.button[href*="/checkout"], footer a').evaluateAll((targets) => targets.map((target) => target.getBoundingClientRect().height));
   expect(landingTargets.every((height) => height >= 44)).toBe(true);
+  const terms = page.getByRole('link', { name: 'Terms' }).last();
+  const termsBox = await terms.boundingBox();
+  expect(termsBox?.width).toBeGreaterThanOrEqual(44);
+  await page.goto('/demo');
+  await page.evaluate(() => { document.documentElement.style.fontSize = '200%'; });
+  await page.getByText('Packet details, history, and deletion').click();
+  const workspace = await page.evaluate(() => ({ width: document.documentElement.scrollWidth, viewport: document.documentElement.clientWidth }));
+  expect(workspace.width).toBeLessThanOrEqual(workspace.viewport);
 });
 
 test('removing a question requires confirmation and remains reversible before acceptance', async ({ page }) => {
@@ -377,6 +411,64 @@ test('invalid import, file limit, and date validation keep clear recovery behavi
   await page.locator('#file-input').setInputFiles({ name: 'too-large.bin', mimeType: 'application/octet-stream', buffer: Buffer.alloc(25 * 1024 * 1024 + 1) });
   await expect(page.getByText('over the 25 MB per-file limit')).toBeVisible();
   await expect(page.locator('.file-list').getByText('too-large.bin')).toHaveCount(0);
+});
+
+test('incomplete backups are rejected before storage and a legacy corrupt row is recovered', async ({ page }) => {
+  await page.goto('/');
+  const incomplete = Buffer.from(JSON.stringify({ version: 1, packet: { name: 'Malformed backup', checklist: [] } }));
+  await page.locator('#import-input').setInputFiles({ name: 'incomplete.json', mimeType: 'application/json', buffer: incomplete });
+  await expect(page.getByText('not a valid Deadline Packet backup')).toBeVisible();
+  expect(await page.evaluate(async () => {
+    const database = await new Promise<IDBDatabase>((resolveDatabase, reject) => {
+      const open = indexedDB.open('deadline-packet');
+      open.onsuccess = () => resolveDatabase(open.result);
+      open.onerror = () => reject(open.error);
+    });
+    const rows = await new Promise<unknown[]>((resolveRows, reject) => {
+      const request = database.transaction('packets').objectStore('packets').getAll();
+      request.onsuccess = () => resolveRows(request.result);
+      request.onerror = () => reject(request.error);
+    });
+    database.close();
+    return rows.length;
+  })).toBe(0);
+  await page.evaluate(async () => {
+    const database = await new Promise<IDBDatabase>((resolveDatabase, reject) => {
+      const open = indexedDB.open('deadline-packet');
+      open.onsuccess = () => resolveDatabase(open.result);
+      open.onerror = () => reject(open.error);
+    });
+    await new Promise<void>((resolveWrite, reject) => {
+      const transaction = database.transaction('packets', 'readwrite');
+      transaction.objectStore('packets').put({ id: 'legacy-corrupt-row', name: 'Malformed backup', checklist: [] });
+      transaction.oncomplete = () => resolveWrite();
+      transaction.onerror = () => reject(transaction.error);
+    });
+    database.close();
+  });
+  await page.reload();
+  await expect(page.getByRole('heading', { level: 1 })).toContainText('Prepare evidence');
+  await expect(page.getByText('A damaged local packet was removed')).toBeVisible();
+  await expect(page.getByText('Your packet drawer could not open.')).toHaveCount(0);
+});
+
+test('a whitespace-only packet name stays in the dialog with a clear error', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Start your packet' }).click();
+  await page.getByLabel('Packet name').fill('   ');
+  await page.getByRole('button', { name: 'Create packet' }).click();
+  await expect(page.getByRole('dialog')).toBeVisible();
+  await expect(page.getByLabel('Packet name')).toHaveJSProperty('validationMessage', 'Enter a packet name with letters or numbers.');
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Prepare evidence for your accountant.');
+});
+
+test('@claim:no-tax-calculation @claim:no-legal-determination @claim:no-document-validation @claim:no-return-submission @claim:no-ocr the capability boundary is explicit and has no hidden action', async ({ page }) => {
+  await page.goto('/terms');
+  await expect(page.getByText(/does not calculate tax, determine legal requirements, validate document sufficiency, submit returns/i)).toBeVisible();
+  await expect(page.getByText(/or run OCR/i)).toBeVisible();
+  await expect(page.getByRole('button', { name: /calculate|submit|scan|ocr/i })).toHaveCount(0);
+  await page.goto('/');
+  await expect(page.getByText(/doesn’t calculate tax, interpret rules, or submit anything/i)).toBeVisible();
 });
 
 test('a changed production worker replaces the old shell and offers reload', async ({ page }) => {

@@ -17,9 +17,11 @@
       "headers": { "Cache-Control": "public, max-age=3600" }
     }
   ],
-  "navigationFallback": {
-    "rewrite": "/index.html",
-    "exclude": ["/assets/*", "/icons/*", "/*.css", "/*.js", "/*.json", "/*.svg", "/*.webmanifest", "/*.xml"]
+  "responseOverrides": {
+    "404": {
+      "rewrite": "/404.html",
+      "statusCode": 404
+    }
   },
   "mimeTypes": {
     ".webmanifest": "application/manifest+json"

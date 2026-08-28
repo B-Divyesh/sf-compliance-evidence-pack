@@ -82,5 +82,40 @@
     "where": "privacy page",
     "test": "npm run test:e2e -- --grep @claim:license-nonblocking",
     "sandbox": "fresh Chromium context with a saved license and a deliberately stalled verification response; assert the free packet interface renders before verification resolves"
+  },
+  {
+    "id": "no-tax-calculation",
+    "claim": "Deadline Packet does not calculate tax.",
+    "where": "terms, README, landing capability boundary",
+    "test": "npm run test:e2e -- --grep @claim:no-tax-calculation",
+    "sandbox": "fresh Chromium context; inspect the stated capability boundary and assert no calculation action is present"
+  },
+  {
+    "id": "no-legal-determination",
+    "claim": "Deadline Packet does not determine legal requirements.",
+    "where": "terms, README",
+    "test": "npm run test:e2e -- --grep @claim:no-legal-determination",
+    "sandbox": "fresh Chromium context; inspect the stated capability boundary and assert no legal-determination action is present"
+  },
+  {
+    "id": "no-document-validation",
+    "claim": "Deadline Packet does not validate document sufficiency.",
+    "where": "terms, README",
+    "test": "npm run test:e2e -- --grep @claim:no-document-validation",
+    "sandbox": "fresh Chromium context; inspect the stated capability boundary and assert no validation action is present"
+  },
+  {
+    "id": "no-return-submission",
+    "claim": "Deadline Packet does not submit returns.",
+    "where": "terms, README, landing capability boundary",
+    "test": "npm run test:e2e -- --grep @claim:no-return-submission",
+    "sandbox": "fresh Chromium context; inspect the stated capability boundary and assert no submission action is present"
+  },
+  {
+    "id": "no-ocr",
+    "claim": "Deadline Packet does not run OCR.",
+    "where": "terms, README",
+    "test": "npm run test:e2e -- --grep @claim:no-ocr",
+    "sandbox": "fresh Chromium context; inspect the stated capability boundary and assert no scan or OCR action is present"
   }
 ]

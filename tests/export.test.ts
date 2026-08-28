@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { makePdf, makeZip } from '../src/export';
+import { makeBackup } from '../src/export';
+import { parseBackup } from '../src/backup';
 import type { Packet } from '../src/types';
 
 const packet: Packet = {
@@ -32,5 +34,15 @@ describe('accountant exports', () => {
     const bytes = new Uint8Array(await zip.arrayBuffer());
     expect([...bytes.slice(0, 2)]).toEqual([0x50, 0x4b]);
     expect(zip.size).toBeGreaterThan(500);
+  });
+
+  it('round-trips a complete backup and normalizes legacy file-size metadata', async () => {
+    const backup = await makeBackup(packet, [{
+      id: 'file-1', packetId: packet.id, name: 'receipt.txt', type: 'text/plain', size: 99,
+      category: 'Receipt', note: '', addedAt: '2026-07-01T00:00:00.000Z', blob: new Blob(['receipt']),
+    }]);
+    const parsed = parseBackup(JSON.parse(await backup.text()));
+    expect(parsed).not.toBeNull();
+    expect(parsed?.files[0]).toMatchObject({ name: 'receipt.txt', size: 7 });
   });
 });
