@@ -1,54 +1,37 @@
-# Deadline Packet — perfection-loop round 4 handoff
+# Deadline Packet — adversarial review 5 handoff
 
 ## Outcome
 
-All findings from reviews 1–4 are fixed, tested, pushed, deployed, and checked
-again on the cold production site. The final product repair is
-`a365b70680ab0abd894742a173b0092e7871414f`; the evidence/docs commit follows
-it without changing the built product. Production is
-<https://compliance-evidence-pack.sociobot.in>.
+Review 5 is complete and the verdict is **FAIL** with ten findings. No product
+code was modified. The first-read gate, live one-click demo, sandbox isolation,
+offline workflow, declared claim commands, build, route responses, links,
+metadata, axe checks, and visual identity all pass.
 
-Round 4 raised every final demo label to at least 16 px, made the typography
-regression wait for seeded content, declared and proved cleared-data recovery
-limits, corrected README language and the copy audit, and kept mobile packet
-tools reachable. The night-market evidence-desk identity and offline PWA class
-are unchanged.
+Two blocking claim-accountability issues remain: the free-tier claim test does
+not complete/export the advertised “complete packet,” and the public AI-art
+provenance statement is missing from `.factory/claims.json`. SPA navigation
+also focuses `<main>` instead of the new h1. Seven plain-words/heading defects
+remain. Exact evidence and rewrites are in
+[`review-5.md`](./review-5.md).
 
-## Verification
+## Verification completed
 
-- Clean clone `/tmp/compliance-evidence-pack-polish4-final-tTBh10`: `npm ci`
-  found zero vulnerabilities; all 24 exact claim commands passed separately.
-- `npm ci && CI=1 npm test && npm run build`: TypeScript passed, 10 unit/policy
-  tests passed, 32 Chromium tests passed, and `dist/` was produced.
-- Claims cover isolated/resettable `?demo=1`, sample contents, storage and
-  encryption, privacy/network boundaries, exports/import, offline use,
-  editable dates, rapid question retention, paid/free behavior, storage
-  erasure, and explicit capability limits.
-- Browser coverage includes keyboard dialog/focus, History Back announcements,
-  real HTTP 404, route titles/metadata/canonical tags, mobile 200% reflow,
-  44 px controls, 16 px text, CSP/cache/MIME, service-worker updates, malformed
-  imports, confirmation flows, and zero serious/critical axe issues.
-- Live factory verifier: HTTP 200; correct title, `lang`, h1, main landmark,
-  image alt text, and button names; zero console errors.
-- Live route sweep: `/`, `/demo`, `/privacy`, and `/terms` return 200 with
-  route-specific titles; `/polish-4-missing` returns the designed HTTP 404;
-  all routes have one h1 and zero axe violations. Every internal link returned
-  200; checkout returned 303.
-- Live demo: two files, four evidence gaps, two questions, demo-only database
-  and key, visible banner/reset/exit, no sub-16 px text, reset removes edits,
-  exit removes demo storage, and no third-party request occurs.
-- Live cleared-data proof: encrypted attachment, packet, file, and key exist
-  before clearing; all counts are zero afterward; no recovery action or
-  third-party request exists.
-- Live offline proof: reload, checklist edit, full offline status, and ZIP
-  download all pass.
-- Lighthouse mobile: Performance 99, Accessibility 100, Best Practices 100,
-  SEO 100; FCP 974 ms, LCP 1,057 ms, TBT 109 ms, CLS 0.
-- Build budget: JS 56,145 B raw / 19,962 B gzip; CSS 26,408 B raw / 6,531 B
-  gzip. Live JS/CSS SHA-256 values match local `dist/`.
+- Fresh live Chromium at 390×844 and 1440×900, without scrolling.
+- Live demo seed, sample-license isolation, Reset demo, Start for real, request
+  log, and unchanged real packet check.
+- Live offline reload, edit, status, and accountant ZIP download.
+- All 24 exact claim commands from a clean clone at commit
+  `367e07fc0866a4371183e170f9adb5e544379cad`; all returned zero.
+- `CI=1 npm test && npm run build`: 10 unit/policy tests and 32 browser tests
+  passed; `dist/` was produced.
+- Live root/demo/privacy/terms/404 metadata, canonical, one-h1, header/footer,
+  link crawl, History Back, focus, announcements, and axe sweep.
+- Factory URL verifier: 200, 796 ms load, correct title/lang/main/alt/buttons,
+  and zero console errors.
+- Live JS/CSS SHA-256 values match the clean build.
 
-Evidence and the per-finding matrix are in [`.factory/polish-4.md`](./polish-4.md)
-and [`.factory/qa-artifacts/polish-4-live/`](./qa-artifacts/polish-4-live/).
+Evidence is in `.factory/qa-artifacts/review-5-*` and the complete report is
+`.factory/review-5.md`.
 
 ## Run and verify
 
@@ -58,17 +41,13 @@ npm test
 npm run build
 ```
 
-Claim-specific commands are listed in `.factory/claims.json`. The static build
-root is `dist/`.
-
-## Deployment
-
-- Static deployment ID: `0481da0a-bb00-4181-9230-13391dbc3b1f`
-- URL: <https://compliance-evidence-pack.sociobot.in>
-- Final deployment completed through `/opt/fleet/lib/deploy-static.sh` with
-  work-order slug `compliance-evidence-pack` and `dist/`.
+Run each exact claim command from `.factory/claims.json` separately. For live
+review, use `/demo` in a fresh context and record all requests through reset,
+exit, offline reload, edit, and export.
 
 ## Known gaps and next steps
 
-None. No review finding, test failure, accessibility issue, privacy leak,
-offline failure, route defect, or documented acceptance gap remains.
+Fix F-5-1 through F-5-10 without weakening the existing demo, privacy, offline,
+or visual behavior. Add claim coverage for the exact free-tier and provenance
+wording, focus the route h1, replace the flagged copy, deploy, and repeat the
+full review. Infrastructure, DNS, and billing were not changed.
