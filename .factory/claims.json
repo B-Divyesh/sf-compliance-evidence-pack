@@ -84,6 +84,13 @@
     "sandbox": "fresh Chromium context; create a packet, reload to prove retention, delete it with confirmation, then clear IndexedDB, Cache Storage, and localStorage and assert no packet returns"
   },
   {
+    "id": "cleared-data-recovery",
+    "claim": "Deadline Packet cannot recover local packet data or its browser encryption key after site storage is cleared.",
+    "where": "privacy page",
+    "test": "npm run test:e2e -- --grep @claim:cleared-data-recovery",
+    "sandbox": "fresh Chromium context; create a packet with an encrypted attachment; prove the packet, ciphertext, and browser key exist; clear IndexedDB, Cache Storage, and localStorage; assert all three are gone, no recovery action exists, and no recovery request leaves the site"
+  },
+  {
     "id": "license-nonblocking",
     "claim": "License verification never blocks the free experience.",
     "where": "privacy page",

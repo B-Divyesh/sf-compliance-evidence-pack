@@ -338,6 +338,81 @@ test('@claim:local-retention persists a packet until confirmed deletion or clear
   await expect(page.getByRole('heading', { level: 1 })).toContainText('Prepare evidence');
 });
 
+test('@claim:cleared-data-recovery cleared storage removes the packet, encrypted file, and browser key without a recovery path', async ({ page }) => {
+  const requests: string[] = [];
+  page.on('request', (request) => requests.push(request.url()));
+  await page.goto('/privacy');
+  await expect(page.getByText('We cannot recover local data or a browser key after it is cleared.')).toBeVisible();
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Start your packet' }).click();
+  await page.getByLabel('Packet name').fill('Clear-site proof packet');
+  await page.getByRole('button', { name: 'Create packet' }).click();
+  await page.locator('#file-input').setInputFiles({
+    name: 'clear-site-proof.txt',
+    mimeType: 'text/plain',
+    buffer: Buffer.from('encrypted before site storage is cleared'),
+  });
+  await expect(page.getByText('clear-site-proof.txt')).toBeVisible();
+
+  const beforeClear = await page.evaluate(async () => {
+    const database = await new Promise<IDBDatabase>((resolveDatabase, reject) => {
+      const open = indexedDB.open('deadline-packet');
+      open.onsuccess = () => resolveDatabase(open.result);
+      open.onerror = () => reject(open.error);
+    });
+    const count = (store: string) => new Promise<number>((resolveCount, reject) => {
+      const request = database.transaction(store).objectStore(store).count();
+      request.onsuccess = () => resolveCount(request.result);
+      request.onerror = () => reject(request.error);
+    });
+    const files = await new Promise<Array<{ encrypted?: boolean; blob: Blob }>>((resolveFiles, reject) => {
+      const request = database.transaction('files').objectStore('files').getAll();
+      request.onsuccess = () => resolveFiles(request.result);
+      request.onerror = () => reject(request.error);
+    });
+    const counts = {
+      packets: await count('packets'),
+      files: await count('files'),
+      keys: await count('keys'),
+      encrypted: files[0]?.encrypted,
+      containsPlaintext: (await files[0]?.blob.text())?.includes('encrypted before site storage is cleared') ?? false,
+    };
+    database.close();
+    return counts;
+  });
+  expect(beforeClear).toEqual({ packets: 1, files: 1, keys: 1, encrypted: true, containsPlaintext: false });
+
+  await page.evaluate(async () => {
+    localStorage.clear();
+    await Promise.all((await caches.keys()).map((key) => caches.delete(key)));
+    await new Promise<void>((resolveDelete) => {
+      const deletion = indexedDB.deleteDatabase('deadline-packet');
+      deletion.onsuccess = deletion.onerror = deletion.onblocked = () => resolveDelete();
+    });
+  });
+  await page.reload();
+  await expect(page.getByRole('heading', { level: 1 })).toContainText('Prepare evidence');
+  const afterClear = await page.evaluate(async () => {
+    const database = await new Promise<IDBDatabase>((resolveDatabase, reject) => {
+      const open = indexedDB.open('deadline-packet');
+      open.onsuccess = () => resolveDatabase(open.result);
+      open.onerror = () => reject(open.error);
+    });
+    const count = (store: string) => new Promise<number>((resolveCount, reject) => {
+      const request = database.transaction(store).objectStore(store).count();
+      request.onsuccess = () => resolveCount(request.result);
+      request.onerror = () => reject(request.error);
+    });
+    const counts = { packets: await count('packets'), files: await count('files'), keys: await count('keys') };
+    database.close();
+    return counts;
+  });
+  expect(afterClear).toEqual({ packets: 0, files: 0, keys: 0 });
+  await expect(page.getByRole('button', { name: /recover (local data|browser key)/i })).toHaveCount(0);
+  await expect(page.getByRole('link', { name: /recover (local data|browser key)/i })).toHaveCount(0);
+  expect(requests.every((url) => new URL(url).origin === 'http://127.0.0.1:4173')).toBe(true);
+});
+
 test('@claim:editable-handoff-date a handoff date can be created, changed, and retained', async ({ page }) => {
   await page.goto('/');
   await page.getByRole('button', { name: 'Start your packet' }).click();
@@ -540,6 +615,13 @@ test('all visible readable text meets the documented 16px minimum at 390px', asy
   await page.setViewportSize({ width: 390, height: 844 });
   for (const route of ['/', '/demo'] as const) {
     await page.goto(route);
+    if (route === '/demo') {
+      await expect(page.getByRole('heading', { level: 1 })).toHaveText('Apr–Jun cross-border evidence');
+      await expect(page.locator('.evidence-checklist .checklist > li')).toHaveCount(7);
+      await expect(page.locator('.file-list > li')).toHaveCount(2);
+    } else {
+      await expect(page.getByRole('heading', { level: 1 })).toHaveText('Prepare evidence for your accountant.');
+    }
     const undersized = await page.evaluate(() => [...document.querySelectorAll<HTMLElement>('body *')]
       .filter((element) => {
         const style = getComputedStyle(element);

@@ -1,8 +1,10 @@
 # Copy audit
 
-Audited 2026-08-28 after perfection-loop round 3. Counts treat hyphenated
-terms and prices as one word. Every landing sentence is at or below 22 words.
-No banned marketing term appears in visitor-facing copy.
+Audited 2026-08-28 after perfection-loop round 4. Counts use displayed tokens:
+split on whitespace, ignore a standalone em dash, and keep hyphenated terms
+and prices as one token. Every landing sentence is at or below 22 words. No
+banned marketing term appears in visitor-facing copy. The release-policy test
+recounts every row and checks each phrase against the product source.
 
 ## First screen
 
@@ -14,7 +16,7 @@ No banned marketing term appears in visitor-facing copy.
 | For freelancers with cross-border income, organize one filing period’s invoices, receipts, evidence gaps, and questions for accountant review. | 18 | Pass; audience and change |
 | Try it with sample data | 5 | Pass; primary action |
 | Start your packet | 3 | Pass; real first step |
-| The sample opens with files, evidence gaps, and accountant questions. | 9 | Pass |
+| The sample opens with files, evidence gaps, and accountant questions. | 10 | Pass |
 | No account. | 2 | Pass |
 | Data stays in this browser. | 5 | Pass |
 | Works offline after your first visit. | 6 | Pass |
@@ -26,7 +28,7 @@ No banned marketing term appears in visitor-facing copy.
 
 | Copy | Words | Result |
 | --- | ---: | --- |
-| From scattered evidence to one reviewable handoff. | 8 | Pass |
+| From scattered evidence to one reviewable handoff. | 7 | Pass |
 | See the evidence gaps before handoff. | 6 | Pass |
 | Files, checklist states, and questions stay together in one packet. | 10 | Pass |
 | Open the sample packet | 4 | Pass; result-naming action |
@@ -49,7 +51,7 @@ No banned marketing term appears in visitor-facing copy.
 | --- | ---: | --- |
 | New packet | 2 | Pass; one product term |
 | Use the date you want the packet with your accountant—not a statutory deadline. | 13 | Pass |
-| This creates an organizational checklist, not a filing or legal determination. | 10 | Pass |
+| This creates an organizational checklist, not a filing or legal determination. | 11 | Pass |
 | Prepare filing-period evidence for accountant review. | 6 | Pass |
 | Original still-life artwork was AI-generated for Deadline Packet. | 8 | Pass; provenance disclosure |
 | Organize one filing period’s invoices, receipts, evidence gaps, and questions for accountant review. | 13 | Pass; search description |
@@ -65,6 +67,15 @@ No banned marketing term appears in visitor-facing copy.
 | Activate sample license | 3 | Pass; result-naming action |
 | Sample lifetime license activated. | 4 | Pass |
 | Demo changes still stay separate. | 5 | Pass |
+
+## README corrections
+
+| Copy | Words | Result |
+| --- | ---: | --- |
+| `npm test` checks types, unit tests, and browser tests. | 9 | Pass; names the checks that run |
+| If Chromium is missing, run `npx playwright install chromium`. | 9 | Pass; direct setup instruction |
+| `src/db.ts` — stores and encrypts real and demo data separately in the browser. | 12 | Pass; behavior before implementation |
+| `public/sw.js` — caches the app for offline use and installs updates. | 10 | Pass; behavior before implementation |
 
 ## Terminology
 

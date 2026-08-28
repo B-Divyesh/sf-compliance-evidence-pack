@@ -45,15 +45,15 @@ No backend or environment variable is required.
 
 ## Test and build
 
-The project requires Playwright 1.58.2. Install its Chromium binary outside the factory
-image with `npx playwright install chromium`.
+The project requires Playwright 1.58.2. If Chromium is missing, run
+`npx playwright install chromium`.
 
 ```sh
 npm test
 npm run build
 ```
 
-`npm test` runs TypeScript, Vitest, and Chromium coverage. Claim-specific
+`npm test` checks types, unit tests, and browser tests. Claim-specific
 commands are listed in [`.factory/claims.json`](./.factory/claims.json). The
 production build lands in `dist/`, with `index.html` at its root.
 
@@ -66,9 +66,9 @@ and Azure Static Web Apps configuration. The factory owns DNS and infrastructure
 ## Project map
 
 - `src/main.ts` — screens, demo seed, routing, and interaction logic.
-- `src/db.ts` — isolated real/demo IndexedDB persistence and encryption.
+- `src/db.ts` — stores and encrypts real and demo data separately in the browser.
 - `src/export.ts` — ZIP, PDF, and JSON generation.
-- `public/sw.js` — versioned offline shell and update lifecycle.
+- `public/sw.js` — caches the app for offline use and installs updates.
 - `.factory/design.md` — product visual system and asset provenance.
 - `.factory/handoff.md` — exact release verification evidence.
 

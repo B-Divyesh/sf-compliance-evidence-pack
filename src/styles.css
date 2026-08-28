@@ -34,6 +34,7 @@ button, input, textarea { font: inherit; }
 button, a { -webkit-tap-highlight-color: transparent; }
 button { color: inherit; }
 a { color: var(--cyan); }
+small { font-size: 1rem; }
 img { max-width: 100%; display: block; }
 h1, h2, h3, p { margin-top: 0; }
 h1, h2, h3 { font-family: "Arial Narrow", "Roboto Condensed", "Aptos Narrow", sans-serif; line-height: .96; letter-spacing: -.025em; }

@@ -15,11 +15,11 @@ describe('static deployment policy', () => {
     expect(config.routes.find((route) => route.route === '/assets/*')?.headers['Cache-Control']).toBe('public, max-age=31536000, immutable');
     expect(config.routes.find((route) => route.route === '/sw.js')?.headers['Cache-Control']).toBe('no-cache');
     expect(config.mimeTypes['.webmanifest']).toBe('application/manifest+json');
-  expect(config.responseOverrides['404']).toEqual({ rewrite: '/404.html', statusCode: 404 });
-  const offline = readFileSync('public/offline.html', 'utf8');
-  expect(offline).toContain('<title>Offline — Deadline Packet</title>');
-  expect(offline).toContain('href="/privacy"');
-  expect(offline).toContain('href="/terms"');
+    expect(config.responseOverrides['404']).toEqual({ rewrite: '/404.html', statusCode: 404 });
+    const offline = readFileSync('public/offline.html', 'utf8');
+    expect(offline).toContain('<title>Offline — Deadline Packet</title>');
+    expect(offline).toContain('href="/privacy"');
+    expect(offline).toContain('href="/terms"');
   });
 });
 
@@ -58,4 +58,29 @@ it('keeps the catalog description verb-first and within 120 characters', () => {
   const description = readFileSync('.factory/catalog-description.txt', 'utf8').trim();
   expect(description.length).toBeLessThanOrEqual(120);
   expect(description).toMatch(/^Organize\b/);
+});
+
+it('keeps every recorded copy-audit count tied to product source', () => {
+  const audit = readFileSync('.factory/copy-audit.md', 'utf8');
+  const source = ['index.html', 'src/main.ts', 'public/manifest.webmanifest', 'README.md']
+    .map((file) => readFileSync(file, 'utf8'))
+    .join('\n')
+    .replace(/\$\{lifetimePrice\}/g, 'US$12')
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/`/g, '')
+    .replace(/\s+/g, ' ');
+  const rows = audit.split('\n').flatMap((line) => {
+    const match = line.match(/^\| (.+) \| (\d+) \|/);
+    return match ? [{ copy: match[1].replace(/`/g, '').trim(), recorded: Number(match[2]) }] : [];
+  });
+  const displayedWordCount = (copy: string) => copy.split(/\s+/u)
+    .filter((token) => token !== '—').length;
+
+  expect(rows.length).toBeGreaterThan(30);
+  for (const row of rows) {
+    expect(displayedWordCount(row.copy), row.copy).toBe(row.recorded);
+    expect(row.recorded, row.copy).toBeLessThanOrEqual(22);
+    expect(row.copy, row.copy).not.toMatch(/\b(?:leverage|seamless|effortless|robust|powerful|intuitive|reimagine|supercharge|unlock|delightful|journey|ecosystem|AI-powered)\b/i);
+    expect(source, row.copy).toContain(row.copy.replace(/\s+/g, ' '));
+  }
 });
