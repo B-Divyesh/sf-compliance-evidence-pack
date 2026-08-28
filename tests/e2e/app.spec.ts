@@ -325,11 +325,27 @@ test('@claim:editable-handoff-date a handoff date can be created, changed, and r
   await page.getByLabel('Packet name').fill('Deadline date packet');
   await page.getByLabel('Your handoff deadline').fill('2026-10-15');
   await page.getByRole('button', { name: 'Create packet' }).click();
+  await expect(page.locator('.due-line')).toContainText('15 Oct 2026');
   await page.getByText('Packet details, history, and deletion').click();
   await page.locator('#detail-deadline').fill('2026-11-20');
   await page.getByRole('button', { name: 'Save packet details' }).click();
-  await expect(page.getByText('20 Nov 2026')).toBeVisible();
+  await expect(page.locator('.due-line')).toContainText('20 Nov 2026');
+  expect(await page.evaluate(async () => {
+    const database = await new Promise<IDBDatabase>((resolveDatabase, reject) => {
+      const open = indexedDB.open('deadline-packet');
+      open.onsuccess = () => resolveDatabase(open.result);
+      open.onerror = () => reject(open.error);
+    });
+    const packet = await new Promise<{ deadline: string }>((resolvePacket, reject) => {
+      const request = database.transaction('packets').objectStore('packets').getAll();
+      request.onsuccess = () => resolvePacket(request.result[0]);
+      request.onerror = () => reject(request.error);
+    });
+    database.close();
+    return packet.deadline;
+  })).toBe('2026-11-20');
   await page.reload();
+  await expect(page.locator('.due-line')).toContainText('20 Nov 2026');
   await page.getByText('Packet details, history, and deletion').click();
   await expect(page.locator('#detail-deadline')).toHaveValue('2026-11-20');
 });
@@ -339,6 +355,7 @@ test('@claim:demo-exit Start for real removes demo changes without changing real
   await page.getByRole('button', { name: 'Start your packet' }).click();
   await page.getByLabel('Packet name').fill('My real packet');
   await page.getByRole('button', { name: 'Create packet' }).click();
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('My real packet');
   await page.goto('/demo');
   await page.getByLabel('Question for your accountant').fill('Demo-only question');
   await page.getByRole('button', { name: 'Add question' }).click();

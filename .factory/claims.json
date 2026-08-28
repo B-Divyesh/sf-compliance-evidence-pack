@@ -102,7 +102,7 @@
     "claim": "Choose your own handoff date.",
     "where": "landing, terms",
     "test": "npm run test:e2e -- --grep @claim:editable-handoff-date",
-    "sandbox": "fresh Chromium context; create a packet with a chosen date, edit it, reload, and assert the displayed deadline and saved field use the replacement date"
+    "sandbox": "fresh Chromium context; create a packet with a chosen date; edit it to 2026-11-20; assert the visible 20 Nov 2026 summary, IndexedDB value, reload summary, and reopened field"
   },
   {
     "id": "question-retention",

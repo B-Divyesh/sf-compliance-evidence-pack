@@ -61,7 +61,12 @@ function touch(packet: Packet, action: string): Packet {
   return { ...packet, updatedAt: now, history: [{ at: now, action }, ...packet.history].slice(0, 20) };
 }
 
-async function save(packetId: string, action: string, change: (current: Packet) => Packet): Promise<void> {
+async function save(
+  packetId: string,
+  action: string,
+  change: (current: Packet) => Packet,
+  renderMode: 'deferred' | 'immediate' = 'deferred',
+): Promise<void> {
   // Every edit is derived when it reaches the queue, rather than from a DOM
   // snapshot captured before an attachment finishes encrypting. This preserves
   // rapid back-to-back edits across async IndexedDB work.
@@ -75,7 +80,13 @@ async function save(packetId: string, action: string, change: (current: Packet) 
   saveQueue = pending.catch(() => undefined);
   await pending;
   announce(action);
-  scheduleDashboardRender();
+  if (renderMode === 'immediate') {
+    if (dashboardRenderTimer !== null) window.clearTimeout(dashboardRenderTimer);
+    dashboardRenderTimer = null;
+    await render();
+  } else {
+    scheduleDashboardRender();
+  }
 }
 
 /**
@@ -164,7 +175,7 @@ function licenseCard(compact = false): string {
     <h2 id="unlock-title">Keep every filing period</h2>
     <p>${lifetimePrice} once. Your first complete packet is free; unlimited packets and duplication require the lifetime license.</p>
     <a class="button small" href="${checkoutUrl}">Buy a lifetime license</a>
-    <details><summary>Restore a lifetime license</summary><form id="restore-form"><label for="license-token">License token</label><input id="license-token" name="token" autocomplete="off" required><button class="secondary small" type="submit" aria-label="Verify and restore lifetime license">Verify and restore</button></form></details>
+    <details id="license-restore"><summary>Restore a lifetime license</summary><form id="restore-form"><label for="license-token">License token</label><input data-preserve-draft id="license-token" name="token" autocomplete="off" required><button class="secondary small" type="submit" aria-label="Verify and restore lifetime license">Verify and restore</button></form></details>
     <p class="micro">Checkout opens on Sociobot/Dodo.</p>
   </section>`;
 }
@@ -200,8 +211,20 @@ function restoreDrafts(drafts: Map<string, string>): void {
   }
 }
 
+function captureOpenDetails(): Set<string> {
+  return new Set([...main.querySelectorAll<HTMLDetailsElement>('details[id][open]')].map((details) => details.id));
+}
+
+function restoreOpenDetails(openDetails: Set<string>): void {
+  for (const id of openDetails) {
+    const details = main.querySelector<HTMLDetailsElement>(`#${CSS.escape(id)}`);
+    if (details) details.open = true;
+  }
+}
+
 function hasInlineDraft(): boolean {
-  return [...main.querySelectorAll<HTMLInputElement>('[data-preserve-draft]')].some((field) => field.value.trim().length > 0);
+  return [...main.querySelectorAll<HTMLInputElement | HTMLTextAreaElement>('[data-preserve-draft]')]
+    .some((field) => field.value !== (field.dataset.original ?? ''));
 }
 
 function landing(): string {
@@ -261,7 +284,7 @@ function dashboard(packet: Packet, files: EvidenceFile[]): string {
       <form class="inline-form" id="question-form"><label class="sr-only" for="question-text">Question for your accountant</label><input data-preserve-draft id="question-text" name="text" required maxlength="180" placeholder="Example: Which exchange-rate record should I use?"><button class="secondary" type="submit">Add question</button></form>
     </section>
     <section class="handoff-panel" aria-labelledby="handoff-title"><div><p class="folio">04 / Handoff counter</p><h2 id="handoff-title">Package it for review</h2><p>Every export is downloaded to you. Deadline Packet never emails or uploads it.</p></div><div class="handoff-actions"><button class="button" id="zip-export" type="button">Export accountant ZIP</button><button class="secondary" id="pdf-export" type="button">Download PDF index</button><button class="ghost" id="backup-export" type="button">Export JSON backup</button></div></section>
-    <details class="packet-settings"><summary>Packet details, history, and deletion</summary><form id="details-form" class="details-form"><div class="field-grid"><div><label for="detail-start">Period starts</label><input id="detail-start" name="periodStart" type="date" required value="${packet.periodStart}"></div><div><label for="detail-end">Period ends</label><input id="detail-end" name="periodEnd" type="date" required value="${packet.periodEnd}"></div></div><label for="detail-deadline">Handoff deadline</label><input id="detail-deadline" name="deadline" type="date" required value="${packet.deadline}"><label for="detail-accountant">Accountant or contact</label><input id="detail-accountant" name="accountant" value="${escapeHtml(packet.accountant)}" maxlength="100"><label for="packet-note">Packet note</label><textarea id="packet-note" name="note" rows="4" maxlength="1000">${escapeHtml(packet.note)}</textarea><button class="secondary" type="submit" aria-label="Save packet details">Save packet details</button></form>
+    <details class="packet-settings" id="packet-details"><summary>Packet details, history, and deletion</summary><form id="details-form" class="details-form"><div class="field-grid"><div><label for="detail-start">Period starts</label><input data-preserve-draft data-original="${packet.periodStart}" id="detail-start" name="periodStart" type="date" required value="${packet.periodStart}"></div><div><label for="detail-end">Period ends</label><input data-preserve-draft data-original="${packet.periodEnd}" id="detail-end" name="periodEnd" type="date" required value="${packet.periodEnd}"></div></div><label for="detail-deadline">Handoff deadline</label><input data-preserve-draft data-original="${packet.deadline}" id="detail-deadline" name="deadline" type="date" required value="${packet.deadline}"><label for="detail-accountant">Accountant or contact</label><input data-preserve-draft data-original="${escapeHtml(packet.accountant)}" id="detail-accountant" name="accountant" value="${escapeHtml(packet.accountant)}" maxlength="100"><label for="packet-note">Packet note</label><textarea data-preserve-draft data-original="${escapeHtml(packet.note)}" id="packet-note" name="note" rows="4" maxlength="1000">${escapeHtml(packet.note)}</textarea><button class="secondary" type="submit" aria-label="Save packet details">Save packet details</button></form>
       <div class="history"><h3>Recent history</h3><ol>${packet.history.slice(0, 8).map((entry) => `<li><span>${escapeHtml(entry.action)}</span><time datetime="${entry.at}">${new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(entry.at))}</time></li>`).join('')}</ol></div>
       <div class="danger-zone">${unlocked ? `<button class="ghost" id="duplicate-packet" type="button">Duplicate as a new period</button>` : ''}<button class="danger" id="delete-packet" type="button" aria-label="Delete packet and local files">Delete packet and local files</button></div>
     </details>
@@ -278,6 +301,7 @@ async function render(moveFocus = false): Promise<void> {
   // Dashboard saves are asynchronous. Capture typed, unsaved form values before
   // replacing the workbench so a checklist save cannot erase a concurrent draft.
   const drafts = captureDrafts();
+  const openDetails = captureOpenDetails();
   if (main.contains(document.activeElement)) (document.activeElement as HTMLElement)?.blur();
   const path = location.pathname.replace(/\/+$/, '') || '/';
   if (path === '/privacy' || path === '/terms') {
@@ -310,6 +334,7 @@ async function render(moveFocus = false): Promise<void> {
   if (revision !== renderRevision) return;
   main.innerHTML = dashboard(packet, files);
   restoreDrafts(drafts);
+  restoreOpenDetails(openDetails);
   bindCommon();
   bindDashboard(packet, files);
   if (moveFocus) announceRoute();
@@ -449,11 +474,20 @@ function bindDashboard(packet: Packet, files: EvidenceFile[]): void {
     const question = packet.questions.find((value) => value.id === button.dataset.deleteQuestion);
     if (question && confirm(`Remove “${question.text}” from questions for the accountant?`)) void save(packet.id, 'Question removed', (current) => ({ ...current, questions: current.questions.filter((value) => value.id !== question.id) }));
   });
-  document.querySelector<HTMLFormElement>('#details-form')?.addEventListener('submit', (event) => {
-    event.preventDefault(); const data = new FormData(event.currentTarget as HTMLFormElement);
+  document.querySelector<HTMLFormElement>('#details-form')?.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const form = event.currentTarget as HTMLFormElement;
+    const data = new FormData(form);
     const periodStart = String(data.get('periodStart')); const periodEnd = String(data.get('periodEnd'));
     if (periodStart > periodEnd) { announce('The period start must be before the period end.'); return; }
-    void save(packet.id, 'Packet details saved', (current) => ({ ...current, periodStart, periodEnd, deadline: String(data.get('deadline')), accountant: String(data.get('accountant')).trim(), note: String(data.get('note')).trim() }));
+    const submit = form.querySelector<HTMLButtonElement>('button[type="submit"]');
+    if (submit) submit.disabled = true;
+    try {
+      await save(packet.id, 'Packet details saved', (current) => ({ ...current, periodStart, periodEnd, deadline: String(data.get('deadline')), accountant: String(data.get('accountant')).trim(), note: String(data.get('note')).trim() }), 'immediate');
+    } catch {
+      if (submit) submit.disabled = false;
+      announce('Packet details could not be saved. Check browser storage and try again.');
+    }
   });
   document.querySelector<HTMLButtonElement>('#zip-export')?.addEventListener('click', async (event) => {
     const button = event.currentTarget as HTMLButtonElement; button.disabled = true; button.textContent = 'Packaging…';

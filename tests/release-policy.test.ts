@@ -19,6 +19,16 @@ describe('static deployment policy', () => {
   });
 });
 
+it('maps every declared public claim to exactly one browser test tag', () => {
+  const claims = JSON.parse(readFileSync('.factory/claims.json', 'utf8')) as Array<{ id: string; test: string }>;
+  const browserTests = readFileSync('tests/e2e/app.spec.ts', 'utf8');
+  expect(new Set(claims.map(({ id }) => id)).size).toBe(claims.length);
+  for (const claim of claims) {
+    expect(claim.test).toBe(`npm run test:e2e -- --grep @claim:${claim.id}`);
+    expect(browserTests.split(`@claim:${claim.id}`).length - 1, claim.id).toBe(1);
+  }
+});
+
 it('keeps the demo controls at a 44px-or-larger touch target', () => {
   const styles = readFileSync('src/styles.css', 'utf8');
   expect(styles).toMatch(/\.demo-banner > div > button \{ min-height: 48px; \}/);

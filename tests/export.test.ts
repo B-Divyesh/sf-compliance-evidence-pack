@@ -3,6 +3,7 @@ import { makePdf, makeZip } from '../src/export';
 import { makeBackup } from '../src/export';
 import { parseBackup } from '../src/backup';
 import type { Packet } from '../src/types';
+import { formatDate } from '../src/utils';
 
 const packet: Packet = {
   id: 'packet-1',
@@ -23,6 +24,10 @@ const packet: Packet = {
 };
 
 describe('accountant exports', () => {
+  it('formats packet dates consistently in day-month-year order', () => {
+    expect(formatDate('2026-11-20')).toBe('20 Nov 2026');
+  });
+
   it('builds a valid PDF with packet labels', () => {
     const pdf = makePdf(packet, []);
     expect(new TextDecoder().decode(pdf.slice(0, 8))).toBe('%PDF-1.4');

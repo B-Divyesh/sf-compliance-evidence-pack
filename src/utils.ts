@@ -8,7 +8,10 @@ export function escapeHtml(value: string): string {
 
 export function formatDate(value: string): string {
   if (!value) return 'Not set';
-  return new Intl.DateTimeFormat(undefined, { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' })
+  // Keep packet summaries and exports identical across browser and operating
+  // system locales. The product uses day-month-year everywhere a human reads
+  // a filing date, while the editable fields retain their ISO values.
+  return new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' })
     .format(new Date(`${value}T00:00:00Z`));
 }
 
