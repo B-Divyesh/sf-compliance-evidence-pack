@@ -468,6 +468,29 @@ test('all visible readable text meets the documented 16px minimum at 390px', asy
   }
 });
 
+test('landing and demo keep the reviewed first-screen, preview, navigation, and heading structure', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto('/');
+  const facts = await page.locator('.hero-facts li').evaluateAll((items) => items.map((item) => item.getBoundingClientRect().bottom));
+  expect(facts.every((bottom) => bottom <= 900)).toBe(true);
+  await expect(page.getByRole('region', { name: 'See the evidence gaps before handoff.' })).toBeVisible();
+  const landingOrder = await page.evaluate(() => {
+    const hero = document.querySelector('.hero');
+    const preview = document.querySelector('.packet-preview');
+    const howItWorks = document.querySelector('.promise-band');
+    return Boolean(hero?.compareDocumentPosition(preview!) & Node.DOCUMENT_POSITION_FOLLOWING)
+      && Boolean(preview?.compareDocumentPosition(howItWorks!) & Node.DOCUMENT_POSITION_FOLLOWING);
+  });
+  expect(landingOrder).toBe(true);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(page.getByLabel('Primary navigation').getByRole('link', { name: 'Demo' })).toBeVisible();
+  await expect(page.getByLabel('Primary navigation').getByRole('link', { name: 'Privacy' })).toBeVisible();
+  await expect(page.getByLabel('Primary navigation').getByRole('link', { name: 'Terms' })).toBeVisible();
+  await page.goto('/demo');
+  const firstHeading = await page.locator('#main h1, #main h2').first().evaluate((heading) => heading.tagName);
+  expect(firstHeading).toBe('H1');
+});
+
 test('removing a question requires confirmation and remains reversible before acceptance', async ({ page }) => {
   await page.goto('/demo');
   const question = page.getByText('Which exchange-rate record should I use for the May payment?');
