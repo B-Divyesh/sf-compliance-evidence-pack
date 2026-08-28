@@ -3,7 +3,8 @@
 ## Outcome
 
 All findings in `review-1.md` and the earlier verification reports were repaired
-and verified. Repair commit: `e2aedc13e94b9ce78cf4f0d125b812ec528533e7`.
+and verified. Repair commits: `e2aedc13e94b9ce78cf4f0d125b812ec528533e7`
+and `4be2fd7` (review-layout regression coverage).
 
 ## What changed
 
