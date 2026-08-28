@@ -57,8 +57,8 @@ Verification completed from a clean production build:
 - `npm audit`: 0 vulnerabilities.
 - Production output: initial JS 44.46 KB (16.98 KB gzip), CSS 21.93 KB
   (5.73 KB gzip), hero WebP 94 KB. All are below factory budgets.
-- Lighthouse 12.8.2 mobile: Performance 98, Accessibility 100, Best Practices
-  100, SEO 100. FCP 1.1 s, LCP 2.0 s, TBT 110 ms, CLS 0.
+- Lighthouse 12.8.2 mobile: Performance 100, Accessibility 100, Best Practices
+  100, SEO 100. FCP 1.1 s, LCP 1.8 s, TBT 0 ms, CLS 0.
 - One `<h1>` per rendered screen, `lang`, `<main>`, meaningful hero alt text,
   designed focus states, 44 px targets, reduced-motion fallback, and verified
   dark/paper contrast are present.
