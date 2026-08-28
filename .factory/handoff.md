@@ -1,46 +1,64 @@
-# Deadline Packet — polish 2 handoff
+# Deadline Packet — adversarial review 3 handoff
 
 ## Outcome
 
-Release repair complete. F-2-1 is fixed: at 390 × 844, the landing facts end
-at 751.19, 781.98, and 837.58 px, so privacy, offline, and US$12 price facts
-all appear in the cold first screen. No recorded finding remains open.
+Review 3 is complete with verdict **FAIL**. Product source was not changed.
+The review is recorded in `.factory/review-3.md`.
 
-## Delivered
+## Findings left for repair
 
-- Made the compact-phone hero content-led and tightened its mobile spacing
-  without changing the product’s night-market desk visual identity.
-- Added a 390 × 844 regression assertion for all three first-screen facts.
-- Updated the catalog description to a verb-first, 77-character sentence.
-- Deployed commit `8d07e107745ede130a57c820f0380f34af9ea06f` through Static Web Apps:
-  deployment `9cf85005-0fdb-45b7-a0c8-6cf215fc6159`.
+- **F-3-1 blocking:** demo mode reads and writes the unprefixed real
+  `sb_license:*` localStorage keys.
+- **F-3-2 blocking:** the privacy-page license-storage promise has no
+  `claims.json` entry/test.
+- **F-3-3 blocking:** earlier F-1-19 remains half-fixed; README and live notices
+  still mix lifetime license, one-time license, and unlock.
+- **F-3-4 major:** the offline status badge is CSS-hidden below 760 px.
+- **F-3-5 minor:** the seed summary says “1 open questions.”
+- **F-3-6 minor:** meta/social descriptions use “calm,” “local-first,” and
+  “gaps” instead of plain **evidence gaps** wording.
+- **F-3-7 minor:** `apple-touch-icon` points to a 192×192 asset, not the
+  required 180×180 asset.
+- **F-3-8 minor:** the create dialog calls a packet “New filing folder.”
 
-## Verification
+## Verification performed
 
-- Clean clone `/tmp/compliance-evidence-pack-clean-fCC8A8`: `npm ci` passed;
-  every 22 exact claim command from `.factory/claims.json` passed separately.
-- `CI=1 npm test` passed (TypeScript, 7 Vitest/policy tests, 30 Chromium tests).
-- `npm run build` passed and produced `dist/`: JS 54.32 kB raw / 19.76 kB gzip;
-  CSS 26.08 kB raw / 6.44 kB gzip; hero WebP 95,956 B.
-- Live URL verifier passed with zero console errors:
-  `qa-artifacts/polish-2-live/verify.json`.
-- Cold live Playwright/axe checks passed on `/`, `/demo`, `/privacy`, and
-  `/terms`; each has one h1 and zero serious/critical issues. The explicit
-  unknown route returns HTTP 404. The live link crawl returned 200 for all
-  internal links and 303 for the Sociobot checkout endpoint.
-- Live mobile Lighthouse: Performance 99, Accessibility 100, FCP 1.5 s,
-  LCP 1.9 s, TBT 60 ms, CLS 0. Evidence is
-  `qa-artifacts/polish-2-live/lighthouse-live.json`.
+- Fresh live Chromium contexts at 390×844 and 1440×900 confirmed the job,
+  audience, and first action before scrolling. The three mobile fact bottoms
+  are 751.19, 781.98, and 837.58 px.
+- Entered the live demo in one click. Reset restored the seed and preserved a
+  valid real packet. Start for real removed demo packet data and reopened the
+  real packet. Offline reload/edit/ZIP export worked with same-origin requests.
+- Proved F-3-1 live by reading a seeded real license in `/demo`, then restoring
+  a demo license and observing the unprefixed token/verdict survive demo exit.
+- Created clean clone `/tmp/compliance-evidence-pack-review3-ZNbO9h`, ran
+  `npm ci`, and ran all 22 exact commands from `.factory/claims.json`
+  separately: all passed.
+- `CI=1 npm test` passed: 7 Vitest/policy tests and 30 Chromium tests.
+- `npm run build` passed and produced `dist/`; JS is 54,324 bytes raw / 19.76
+  kB gzip. Live JS/CSS SHA-256 values match the clean build.
+- Live crawl found all internal links at 200 and checkout at the expected 303.
+  Unknown route returned a designed HTTP 404.
+- Playwright axe found zero serious/critical issues on root, demo, privacy,
+  terms, and 404. `/opt/fleet/lib/verify-url.sh` reported correct title, lang,
+  h1, main, alt labels, and zero console errors.
+- Read and reconciled every earlier review, polish report, verification report,
+  and prior handoff. F-2-1 is fixed; F-1-19 is reopened through F-3-3.
 
-## Run and deploy
+## Reproduce
 
 ```sh
 npm ci
 npm test
 npm run build
-/opt/fleet/lib/deploy-static.sh compliance-evidence-pack dist
 ```
 
-## Known gaps
+Open <https://compliance-evidence-pack.sociobot.in/demo> in a fresh browser
+context. For F-3-1, seed `sb_license:compliance-evidence-pack` before opening
+the demo, or restore a license inside the demo, then inspect localStorage after
+**Start for real**.
 
-None.
+## Next step
+
+Repair all eight findings, add the missing sandbox and claim regressions,
+deploy, and run the full first-read review again from fresh contexts.
