@@ -74,6 +74,8 @@ no readable text, no watermark, no gradients, no computer screen.
   Azure OpenAI image deployment (`factory-image`) from the prompt above.
 - `public/assets/deadline-packet-hero.webp`: reviewed derivative, optimized for
   the application; original generation retained with sidecar prompt JSON.
+- `public/assets/deadline-packet-social.webp`: 1200×630 center crop of the same
+  reviewed original, prepared locally for Open Graph and Twitter previews.
 - App marks, status symbols, favicon, and PWA icons are original hand-authored
   SVG/PNG geometry by the product builder (folder tab + three evidence lines),
   released under the repository MIT license.

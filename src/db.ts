@@ -1,6 +1,7 @@
 import type { EvidenceFile, Packet } from './types';
 
-const DB_NAME = 'deadline-packet';
+export const demoMode = location.pathname === '/demo' || new URLSearchParams(location.search).get('demo') === '1';
+export const DB_NAME = demoMode ? 'deadline-packet-demo' : 'deadline-packet';
 const DB_VERSION = 2;
 
 type StoredFile = EvidenceFile & { encrypted?: boolean; iv?: number[] };
@@ -76,6 +77,19 @@ export async function putFile(file: EvidenceFile): Promise<void> {
 
 export async function deleteFile(id: string): Promise<void> {
   await request((await store('files', 'readwrite')).delete(id));
+}
+
+export async function clearLocalData(): Promise<void> {
+  const database = await open();
+  await new Promise<void>((resolve, reject) => {
+    const transaction = database.transaction(['packets', 'files', 'keys'], 'readwrite');
+    transaction.objectStore('packets').clear();
+    transaction.objectStore('files').clear();
+    transaction.objectStore('keys').clear();
+    transaction.oncomplete = () => resolve();
+    transaction.onerror = () => reject(transaction.error ?? new Error('Local data could not be cleared.'));
+  });
+  database.close();
 }
 
 async function getDeviceKey(): Promise<CryptoKey | null> {

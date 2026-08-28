@@ -3,7 +3,7 @@
   "name": "Deadline Packet",
   "short_name": "Packet",
   "description": "Prepare accountant-ready evidence packets privately, on your device.",
-  "start_url": "/?v=1",
+  "start_url": "/?v=2",
   "scope": "/",
   "display": "standalone",
   "background_color": "#071217",
