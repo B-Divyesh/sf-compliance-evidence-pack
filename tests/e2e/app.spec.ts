@@ -11,13 +11,16 @@ test('creates and exports a complete local packet workflow', async ({ page }) =>
   await page.getByRole('button', { name: 'Create packet' }).click();
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('April–June evidence');
   await page.getByLabel('Sales invoices for the filing period').check();
+  await expect(page.getByText('1 of 6 evidence groups ready')).toBeVisible();
   await page.getByLabel('Add a custom evidence item').fill('Platform payout statement');
   await page.getByRole('button', { name: 'Add item' }).click();
+  await expect(page.getByText('Platform payout statement', { exact: true }).first()).toBeVisible();
+  await expect(page.getByText('1 of 7 evidence groups ready')).toBeVisible();
   await page.getByLabel('Question for your accountant').fill('Which exchange-rate record should I include?');
   await page.getByRole('button', { name: 'Add question' }).click();
+  await expect(page.getByText('Which exchange-rate record should I include?', { exact: true })).toBeVisible();
   await page.locator('#file-input').setInputFiles({ name: 'invoice-104.txt', mimeType: 'text/plain', buffer: Buffer.from('Invoice evidence') });
   await expect(page.getByText('invoice-104.txt')).toBeVisible();
-  await expect(page.getByText('1 of 7 evidence groups ready')).toBeVisible();
   const storedFile = await page.evaluate(async () => {
     const database = await new Promise<IDBDatabase>((resolve, reject) => {
       const request = indexedDB.open('deadline-packet'); request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error);
