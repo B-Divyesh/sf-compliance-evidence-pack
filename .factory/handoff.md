@@ -1,46 +1,59 @@
-# Deadline Packet — independent verification 4 handoff
+# Deadline Packet — adversarial review 1 handoff
 
-## PASS — release approved
+## Outcome
 
-Verified 2026-08-28 against candidate commit
-`e7407a99c23de0cc66583dd5fba758b8899257c5` and
-<https://compliance-evidence-pack.sociobot.in/>. The deployed JS, CSS, and
-social image byte-match the freshly built candidate; only the expected
-cache-buster query differs.
+**FAIL.** The complete review is in [review-1.md](./review-1.md). No product
+code was modified.
 
-## What was verified
+The release blocker is a live form-render race: immediately submitting an
+accountant question after changing a checklist item lost the question in 2 of
+10 fresh contexts. The claims inventory and 16 px type baseline are also still
+incomplete, and the review records structure and copy findings.
 
-- All 17 exact `.factory/claims.json` commands pass using the isolated `/demo`
-  workflow. `npm test` exits 0 with 5 Vitest and 24 Playwright tests passing.
-- `npm run build` exits 0 and produces `dist/`. Initial JS is 19,440 B gzip;
-  CSS is 6,164 B gzip; the hero is 95,956 B.
-- The normal packet workflow, 25 MiB boundary, invalid import/date/name
-  recovery, encryption, local retention/deletion, ZIP/PDF/JSON export/import,
-  390 px and 200% reflow, keyboard/dialog behavior, service-worker update,
-  and offline reload/export all pass.
-- Live desktop and 390 px checks have no console/page errors or horizontal
-  overflow. Axe has zero serious/critical issues on root, demo, privacy, and
-  terms. Reduced motion has no running animations.
-- Live routes and response policies pass: HTTPS headers/CSP, real 404,
-  immutable assets, no-cache service worker, manifest MIME, same-origin demo
-  traffic, and no trackers. The optional billing endpoint is rate limited:
-  51 of 80 concurrent-burst requests returned 429 with `Retry-After` after 29
-  successful invalid-license responses.
-- Fresh Lighthouse mobile: Performance 100, Accessibility 100, FCP 1.0 s,
-  LCP 1.1 s, TBT 10 ms, CLS 0.
+## What was done
 
-## Known gaps and next steps
+- Opened the live product cold at 390×844 and 1440×900 and recorded the
+  unscrolled first-read result.
+- Audited every landing/README copy unit with word counts and rewrites.
+- Exercised the seeded demo, reset, real/demo storage isolation, exit, offline
+  reload, and network boundary.
+- Ran all 17 claim commands separately after `npm ci` in a fresh temporary
+  clone.
+- Rechecked every earlier verification finding against live behavior and the
+  byte-matching source build.
+- Crawled links and checked routing, titles, h1s, metadata, canonical URLs,
+  404, focus/Back behavior, 390 px/200% reflow, targets, reduced motion, and
+  axe serious/critical results.
+- Checked the brief for missed import/export, sync, and AI leverage.
 
-No product defects or deployment gap were found. No product code was changed
-by this verification. Full evidence is in `.factory/verification-4.md`.
+Evidence screenshots are in `.factory/qa-artifacts/review-1-*.png`.
 
-## Re-run
+## Verification run
 
 ```sh
-npm ci
 npm test
 npm run build
 ```
 
-For the isolated sample, open
-<https://compliance-evidence-pack.sociobot.in/demo>.
+Results:
+
+- `npm test`: PASS — 5 Vitest tests and 24 Playwright tests.
+- `npm run build`: PASS — `dist/` produced.
+- Initial JavaScript: 53,023 bytes raw / 19,440 bytes gzip.
+- Fresh Lighthouse 12.7.0 mobile: Performance 100, Accessibility 100, FCP/LCP
+  1.0 s, TBT 0 ms, CLS 0.
+- All 17 exact `.factory/claims.json` commands: PASS individually.
+- Live/root/demo/privacy/terms/404 axe scans: zero serious/critical issues.
+- Live and built JS, CSS, and social-image SHA-256 values: identical.
+
+## Known gaps and next steps
+
+1. Fix F-1-1's checklist-to-question render race and replace the one-iteration
+   regression with deterministic race coverage plus repetition.
+2. Resolve every unlisted or partly tested claim in F-1-2 through F-1-10.
+3. Restore the documented 16 px minimum, desktop first-screen facts, mobile
+   navigation, landing product preview, and demo heading order.
+4. Apply the copy rewrites and terminology normalization in F-1-16 through
+   F-1-27.
+5. Re-run the entire adversarial checklist from fresh contexts. Do not rely on
+   the currently passing suite as proof that the rapid interaction is safe.
