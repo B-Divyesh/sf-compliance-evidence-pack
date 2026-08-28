@@ -1,0 +1,27 @@
+{
+  "entry": "https://compliance-evidence-pack.sociobot.in/?demo=1",
+  "banner": "\n      Demo — sample data, nothing is saved to your real packets.\n      Reset demoStart for real\n    ",
+  "files": 2,
+  "gaps": 4,
+  "questions": 2,
+  "undersized": [],
+  "initial": {
+    "databases": [
+      "deadline-packet-demo"
+    ],
+    "keys": [
+      "demo:deadline-packet:current"
+    ]
+  },
+  "mobileImport": true,
+  "mobileSampleLicense": true,
+  "errors": [],
+  "resetRemovedQuestion": true,
+  "afterExit": {
+    "databases": [
+      "deadline-packet"
+    ],
+    "demoKeys": []
+  },
+  "thirdPartyRequests": []
+}

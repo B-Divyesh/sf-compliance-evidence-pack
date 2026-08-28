@@ -1,0 +1,18 @@
+{
+  "before": {
+    "packets": 1,
+    "files": 1,
+    "keys": 1,
+    "encrypted": true,
+    "containsPlaintext": false
+  },
+  "after": {
+    "packets": 0,
+    "files": 0,
+    "keys": 0,
+    "containsPlaintext": false
+  },
+  "thirdPartyRequests": [],
+  "recoveryButtons": 0,
+  "recoveryLinks": 0
+}

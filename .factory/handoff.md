@@ -1,47 +1,74 @@
-# Deadline Packet — review 4 handoff
+# Deadline Packet — perfection-loop round 4 handoff
 
 ## Outcome
 
-Adversarial first-read review 4 is complete against commit
-`29d862e3069b7a223daef4bc9e0b0e56c8b84986` and the live product.
+All findings from reviews 1–4 are fixed, tested, pushed, deployed, and checked
+again on the cold production site. The final product repair is
+`a365b70680ab0abd894742a173b0092e7871414f`; the evidence/docs commit follows
+it without changing the built product. Production is
+<https://compliance-evidence-pack.sociobot.in>.
 
-Verdict: **FAIL** with seven findings. The primary blocker reopens F-1-11:
-twelve meaningful demo labels render at 13.3333 px despite the documented 16 px
-minimum, while the existing regression test inspects the loading shell too
-early and passes. A second blocker records an unlisted cleared-data recovery
-claim on `/privacy`. Product code was not changed.
+Round 4 raised every final demo label to at least 16 px, made the typography
+regression wait for seeded content, declared and proved cleared-data recovery
+limits, corrected README language and the copy audit, and kept mobile packet
+tools reachable. The night-market evidence-desk identity and offline PWA class
+are unchanged.
 
-Full evidence and concrete remediations are in `.factory/review-4.md`.
+## Verification
 
-## Verification performed
+- Clean clone `/tmp/compliance-evidence-pack-polish4-final-tTBh10`: `npm ci`
+  found zero vulnerabilities; all 24 exact claim commands passed separately.
+- `npm ci && CI=1 npm test && npm run build`: TypeScript passed, 10 unit/policy
+  tests passed, 32 Chromium tests passed, and `dist/` was produced.
+- Claims cover isolated/resettable `?demo=1`, sample contents, storage and
+  encryption, privacy/network boundaries, exports/import, offline use,
+  editable dates, rapid question retention, paid/free behavior, storage
+  erasure, and explicit capability limits.
+- Browser coverage includes keyboard dialog/focus, History Back announcements,
+  real HTTP 404, route titles/metadata/canonical tags, mobile 200% reflow,
+  44 px controls, 16 px text, CSP/cache/MIME, service-worker updates, malformed
+  imports, confirmation flows, and zero serious/critical axe issues.
+- Live factory verifier: HTTP 200; correct title, `lang`, h1, main landmark,
+  image alt text, and button names; zero console errors.
+- Live route sweep: `/`, `/demo`, `/privacy`, and `/terms` return 200 with
+  route-specific titles; `/polish-4-missing` returns the designed HTTP 404;
+  all routes have one h1 and zero axe violations. Every internal link returned
+  200; checkout returned 303.
+- Live demo: two files, four evidence gaps, two questions, demo-only database
+  and key, visible banner/reset/exit, no sub-16 px text, reset removes edits,
+  exit removes demo storage, and no third-party request occurs.
+- Live cleared-data proof: encrypted attachment, packet, file, and key exist
+  before clearing; all counts are zero afterward; no recovery action or
+  third-party request exists.
+- Live offline proof: reload, checklist edit, full offline status, and ZIP
+  download all pass.
+- Lighthouse mobile: Performance 99, Accessibility 100, Best Practices 100,
+  SEO 100; FCP 974 ms, LCP 1,057 ms, TBT 109 ms, CLS 0.
+- Build budget: JS 56,145 B raw / 19,962 B gzip; CSS 26,408 B raw / 6,531 B
+  gzip. Live JS/CSS SHA-256 values match local `dist/`.
 
-- Fresh 390×844 and 1440×900 cold first reads.
-- One-click live demo, realistic seed, Reset demo, Start for real, real-data
-  isolation, demo license isolation, and request-log checks.
-- Live service-worker-controlled offline reload, edit, status, and ZIP export.
-- Every one of the 23 exact `.factory/claims.json` commands from clean clone
-  `/tmp/compliance-evidence-pack-review4-raWuna`: all passed.
-- `CI=1 npm test`: 9 unit/policy and 31 Chromium tests passed.
-- `npm run build`: passed and produced `dist/`; JS is 56,145 B raw / 19,962 B
-  gzip, CSS is 26,330 B raw / 6,512 B gzip.
-- Live route metadata, 404, crawl, back/focus announcement, 200% reflow,
-  reduced motion, target sizes, and axe-core checks.
-- Live JavaScript and CSS SHA-256 values match the local build.
-- Every earlier review/polish/handoff finding was checked in live behavior and
-  code; F-1-11 is reopened, all other numbered earlier findings are fixed.
+Evidence and the per-finding matrix are in [`.factory/polish-4.md`](./polish-4.md)
+and [`.factory/qa-artifacts/polish-4-live/`](./qa-artifacts/polish-4-live/).
 
-## Artifacts
+## Run and verify
 
-- `.factory/review-4.md`
-- `.factory/qa-artifacts/review-4-first-read-mobile.png`
-- `.factory/qa-artifacts/review-4-first-read-desktop.png`
-- `.factory/qa-artifacts/review-4-demo-mobile.png`
-- `.factory/qa-artifacts/review-4-demo-offline-mobile.png`
+```sh
+npm ci
+npm test
+npm run build
+```
+
+Claim-specific commands are listed in `.factory/claims.json`. The static build
+root is `dist/`.
+
+## Deployment
+
+- Static deployment ID: `0481da0a-bb00-4181-9230-13391dbc3b1f`
+- URL: <https://compliance-evidence-pack.sociobot.in>
+- Final deployment completed through `/opt/fleet/lib/deploy-static.sh` with
+  work-order slug `compliance-evidence-pack` and `dist/`.
 
 ## Known gaps and next steps
 
-Fix F-4-1 through F-4-7 before acceptance. In particular, make every final
-demo label at least 16 px, wait for the seeded workspace in the typography
-test, and either test/list or remove the cleared-data recovery guarantee. Then
-deploy and repeat the full live review. No infrastructure, billing, or product
-source changes were made in this review.
+None. No review finding, test failure, accessibility issue, privacy leak,
+offline failure, route defect, or documented acceptance gap remains.
