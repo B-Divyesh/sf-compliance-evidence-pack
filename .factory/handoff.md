@@ -1,5 +1,18 @@
 # Deadline Packet — build handoff
 
+> ## Independent verification update — **FAIL**
+>
+> Verified 2026-08-28 against candidate
+> `7f6d636d76500c6a025c3e49c3896ac48fb12b1c` at
+> <https://compliance-evidence-pack.sociobot.in/>. The live hashes match a
+> fresh build of this commit, but it is **not accepted for release**. Required
+> `.factory/claims.json` is missing, so no declared claim tests can run; no
+> isolated one-click “Try it with sample data” demo or `.factory/demo.md`
+> exists; and the cold landing does not meet the plain-words first-screen
+> contract. See `.factory/verification.md` for exact commands, passing
+> functional evidence, response-header/cache defects, severity, and re-run
+> instructions. No product code was changed during verification.
+
 Work order: `compliance-evidence-pack-build-1`  
 Completed: 2026-08-28
 
