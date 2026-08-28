@@ -311,7 +311,7 @@ input:focus-visible, textarea:focus-visible { outline-color: var(--cyan-dark); }
   .site-header nav { width: 100%; max-width: none; flex-wrap: wrap; justify-content: space-between; gap: 2px 4px; }
   .site-header nav > a { min-height: 44px; padding-inline: 6px; font-size: 1rem; }
   .install-button, .status-badge { display: none; }
-  .status-badge.is-offline { display: inline-flex; padding-inline: 8px; margin-right: 0; }
+  .status-badge.is-offline { display: inline-flex; width: 100%; max-width: none; justify-content: center; order: -1; padding-inline: 8px; margin-right: 0; }
   .demo-banner { position: relative; align-items: flex-start; flex-direction: column; padding-block: 12px; }
   .status-badge b { display: none; }
   .status-badge { margin: 0; }
@@ -359,6 +359,8 @@ input:focus-visible, textarea:focus-visible { outline-color: var(--cyan-dark); }
   .brand-mark { width: 30px; }
   .status-badge { max-width: 150px; }
   .status-badge em { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+  .status-badge.is-offline { width: 100%; max-width: none; }
+  .status-badge.is-offline em { overflow: visible; text-overflow: clip; }
   .hero figure { display: none; }
   /* The compact header has two rows on a phone. Keep the hero content-led so
      all three first-read facts remain above the fold instead of reserving an

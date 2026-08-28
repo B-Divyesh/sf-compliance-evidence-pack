@@ -207,7 +207,9 @@ test('@claim:offline-reload demo edits and ZIP export work after an offline relo
   const downloadPromise = page.waitForEvent('download');
   await page.getByRole('button', { name: 'Export accountant ZIP' }).click();
   expect((await downloadPromise).suggestedFilename()).toContain('accountant-packet.zip');
-  await expect(page.getByText('Offline — edits still save')).toBeVisible();
+  const offlineBadge = page.getByText('Offline — edits still save');
+  await expect(offlineBadge).toBeVisible();
+  expect(await offlineBadge.evaluate((label) => label.scrollWidth <= label.clientWidth)).toBe(true);
 });
 
 test('@claim:free-and-paid one packet is free and a valid US$12 lifetime license enables another packet and duplication', async ({ page }) => {
