@@ -102,6 +102,14 @@ test('@claim:demo-isolation sample mode uses separate storage and reset never ch
   expect(databases.marker).toMatchObject({ name: 'Real packet marker' });
 });
 
+test('@claim:demo-seed the first demo screen shows the documented sample contents', async ({ page }) => {
+  await page.goto('/demo');
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Apr–Jun cross-border evidence');
+  await expect(page.locator('.summary-strip')).toContainText('2files attached');
+  await expect(page.locator('.summary-strip')).toContainText('4evidence gaps');
+  await expect(page.locator('.question-list > li')).toHaveCount(2);
+});
+
 test('@claim:privacy-local a full demo flow sends no packet content off origin', async ({ page }) => {
   const requests: string[] = [];
   page.on('request', (request) => requests.push(request.url()));
@@ -166,7 +174,7 @@ test('@claim:packet-exports demo exports ZIP, PDF, and JSON that can be imported
 
 test('@claim:missing-evidence the gap list follows checklist changes', async ({ page }) => {
   await page.goto('/demo');
-  const missing = page.getByRole('complementary', { name: 'Missing evidence' });
+  const missing = page.getByRole('complementary', { name: 'Evidence gaps' });
   await expect(missing).toContainText('Business expense receipts');
   await expect(missing.locator('li')).toHaveCount(4);
   await page.getByLabel('Business expense receipts').check();
@@ -190,12 +198,12 @@ test('@claim:offline-reload demo edits and ZIP export work after an offline relo
   await expect(page.getByText('Offline — edits still save')).toBeVisible();
 });
 
-test('@claim:free-and-paid one packet is free and a valid US$12 license enables another packet and duplication', async ({ page }) => {
+test('@claim:free-and-paid one packet is free and a valid US$12 lifetime license enables another packet and duplication', async ({ page }) => {
   await page.route('**/api/v1/products/compliance-evidence-pack/verify?*', (route) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ valid: true, reason: 'ok', expires_at: null }) }));
   await page.goto('/demo');
   await page.getByRole('button', { name: 'Create another packet' }).click();
   await expect(page.getByText('Unlimited packets require the one-time unlock')).toBeVisible();
-  const buy = page.getByRole('link', { name: 'Buy lifetime access' });
+  const buy = page.getByRole('link', { name: 'Buy a lifetime license' });
   await expect(buy).toHaveAttribute('href', 'https://api.sociobot.in/api/v1/products/compliance-evidence-pack/checkout');
   await expect(page.getByText('US$12 once.')).toBeVisible();
   // The hosted Sociobot/Dodo page is the purchase authority. This deliberately
@@ -209,9 +217,9 @@ test('@claim:free-and-paid one packet is free and a valid US$12 license enables 
   expect(hostedPage.ok()).toBe(true);
   expect(hostedCopy).toContain('Deadline Packet');
   expect(hostedCopy).toContain('$12.00');
-  await page.getByText('Already bought it?').click();
+  await page.getByText('Restore a lifetime license').click();
   await page.getByLabel('License token').fill('valid-demo-license');
-  await page.getByRole('button', { name: 'Verify and restore' }).click();
+  await page.getByRole('button', { name: 'Verify and restore lifetime license' }).click();
   await expect(page.getByText('Unlimited packets active')).toBeVisible();
   await page.getByText('Packet details, history, and deletion').click();
   await expect(page.getByRole('button', { name: 'Duplicate as a new period' })).toBeVisible();
@@ -230,9 +238,9 @@ test('rapid question and attachment edits survive reload', async ({ page }) => {
   await expect(page.getByText('rapid-evidence.txt')).toBeVisible();
 });
 
-test('rapid checklist-to-question edits preserve each submitted question across reload', async ({ page }) => {
+test('@claim:question-retention rapid checklist-to-question edits preserve every submitted question across reload', async ({ page }) => {
   await page.goto('/demo');
-  for (let index = 1; index <= 1; index += 1) {
+  for (let index = 1; index <= 10; index += 1) {
     const question = `Rapid checklist question ${index}`;
     // Do not wait for the checklist save/render. This is the interaction that
     // previously replaced the question form while it was being used.
@@ -242,7 +250,7 @@ test('rapid checklist-to-question edits preserve each submitted question across 
     await expect(page.getByText(question, { exact: true })).toBeVisible();
   }
   await page.reload();
-  for (let index = 1; index <= 1; index += 1) await expect(page.getByText(`Rapid checklist question ${index}`, { exact: true })).toBeVisible();
+  for (let index = 1; index <= 10; index += 1) await expect(page.getByText(`Rapid checklist question ${index}`, { exact: true })).toBeVisible();
 });
 
 test('@claim:account-free a packet can be created and kept without an account', async ({ page }) => {
@@ -284,7 +292,7 @@ test('@claim:tracker-free root, demo, and privacy make no tracker request', asyn
   expect(delivered).not.toMatch(/google-analytics|googletagmanager|segment\.com|mixpanel|facebook\.net/i);
 });
 
-test('@claim:local-retention persists a packet until confirmed deletion', async ({ page }) => {
+test('@claim:local-retention persists a packet until confirmed deletion or clearing site storage', async ({ page }) => {
   await page.goto('/');
   await page.getByRole('button', { name: 'Start your packet' }).click();
   await page.getByLabel('Packet name').fill('Retained packet');
@@ -299,6 +307,65 @@ test('@claim:local-retention persists a packet until confirmed deletion', async 
   await expect(page.getByRole('heading', { level: 1 })).toContainText('Prepare evidence');
   await page.reload();
   await expect(page.getByRole('heading', { level: 1 })).toContainText('Prepare evidence');
+  await page.evaluate(async () => {
+    localStorage.clear();
+    await Promise.all((await caches.keys()).map((key) => caches.delete(key)));
+    await Promise.all(['deadline-packet', 'deadline-packet-demo'].map((name) => new Promise<void>((resolve) => {
+      const request = indexedDB.deleteDatabase(name);
+      request.onsuccess = request.onerror = request.onblocked = () => resolve();
+    })));
+  });
+  await page.reload();
+  await expect(page.getByRole('heading', { level: 1 })).toContainText('Prepare evidence');
+});
+
+test('@claim:editable-handoff-date a handoff date can be created, changed, and retained', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Start your packet' }).click();
+  await page.getByLabel('Packet name').fill('Deadline date packet');
+  await page.getByLabel('Your handoff deadline').fill('2026-10-15');
+  await page.getByRole('button', { name: 'Create packet' }).click();
+  await page.getByText('Packet details, history, and deletion').click();
+  await page.locator('#detail-deadline').fill('2026-11-20');
+  await page.getByRole('button', { name: 'Save packet details' }).click();
+  await expect(page.getByText('20 Nov 2026')).toBeVisible();
+  await page.reload();
+  await page.getByText('Packet details, history, and deletion').click();
+  await expect(page.locator('#detail-deadline')).toHaveValue('2026-11-20');
+});
+
+test('@claim:demo-exit Start for real removes demo changes without changing real packets', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Start your packet' }).click();
+  await page.getByLabel('Packet name').fill('My real packet');
+  await page.getByRole('button', { name: 'Create packet' }).click();
+  await page.goto('/demo');
+  await page.getByLabel('Question for your accountant').fill('Demo-only question');
+  await page.getByRole('button', { name: 'Add question' }).click();
+  await expect(page.getByText('Demo-only question')).toBeVisible();
+  await page.getByRole('button', { name: 'Start for real' }).click();
+  await expect(page).toHaveURL('http://127.0.0.1:4173/');
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('My real packet');
+  const stores = await page.evaluate(async () => (await indexedDB.databases()).map((database) => database.name));
+  expect(stores).not.toContain('deadline-packet-demo');
+});
+
+test('@claim:license-network-boundary only lifetime license actions use the Sociobot API', async ({ page }) => {
+  const requests: Array<{ url: string; method: string }> = [];
+  page.on('request', (request) => requests.push({ url: request.url(), method: request.method() }));
+  await page.goto('/demo');
+  await page.getByLabel('Question for your accountant').fill('No network for packet edits');
+  await page.getByRole('button', { name: 'Add question' }).click();
+  expect(requests.every((request) => new URL(request.url).origin === 'http://127.0.0.1:4173')).toBe(true);
+  await page.route('**/api/v1/products/compliance-evidence-pack/verify?*', (route) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ valid: true }) }));
+  await page.getByText('Restore a lifetime license').click();
+  await page.getByLabel('License token').fill('network-boundary-token');
+  await page.getByRole('button', { name: 'Verify and restore lifetime license' }).click();
+  await expect(page.getByText('Unlimited packets active')).toBeVisible();
+  const sociobot = requests.filter((request) => new URL(request.url).origin === 'https://api.sociobot.in');
+  expect(sociobot).toHaveLength(1);
+  expect(sociobot[0].url).toContain('/verify?license=network-boundary-token');
+  expect(requests.every((request) => ['http://127.0.0.1:4173', 'https://api.sociobot.in'].includes(new URL(request.url).origin))).toBe(true);
 });
 
 test('@claim:license-nonblocking a pending verification does not delay the workspace', async ({ page }) => {
@@ -383,6 +450,22 @@ test('390px 200% text reflows and all exposed mobile controls meet 44px', async 
   await page.getByText('Packet details, history, and deletion').click();
   const workspace = await page.evaluate(() => ({ width: document.documentElement.scrollWidth, viewport: document.documentElement.clientWidth }));
   expect(workspace.width).toBeLessThanOrEqual(workspace.viewport);
+});
+
+test('all visible readable text meets the documented 16px minimum at 390px', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  for (const route of ['/', '/demo'] as const) {
+    await page.goto(route);
+    const undersized = await page.evaluate(() => [...document.querySelectorAll<HTMLElement>('body *')]
+      .filter((element) => {
+        const style = getComputedStyle(element);
+        const rect = element.getBoundingClientRect();
+        return Boolean(element.childElementCount === 0 && element.textContent?.trim() && style.display !== 'none' && style.visibility !== 'hidden' && rect.width > 0 && rect.height > 0);
+      })
+      .map((element) => ({ text: element.textContent?.trim(), size: Number.parseFloat(getComputedStyle(element).fontSize) }))
+      .filter((item) => item.size < 16));
+    expect(undersized).toEqual([]);
+  }
 });
 
 test('removing a question requires confirmation and remains reversible before acceptance', async ({ page }) => {

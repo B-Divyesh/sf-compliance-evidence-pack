@@ -12,19 +12,18 @@ The cold landing exposes **Try it with sample data** in one click.
 
 The demo opens an Apr–Jun 2026 cross-border evidence packet for a fictional
 freelancer. It includes an accountant contact, a review note, seven checklist
-items, four visible gaps, two questions, recent history, one invoice note, and
-one remittance note. Files contain explicit sample text and no real person’s
-data.
+items, four visible evidence gaps, two accountant questions, and two sample
+files. Files contain explicit sample text and no real person’s data.
 
 ## Isolation and reset
 
-Demo data uses IndexedDB database `deadline-packet-demo` and localStorage key
-prefix `demo:`. Real work uses IndexedDB database `deadline-packet` and the
-non-demo current-packet key. Demo mode never reads or writes those real packet
-stores.
+Demo changes stay in a separate browser store named `deadline-packet-demo` and
+use the localStorage key prefix `demo:`. Real work uses a different browser
+store and non-demo current-packet key. Demo mode never reads or writes real
+packet stores.
 
 The persistent banner identifies demo mode. **Reset demo** clears only demo
-stores and reseeds the original sample. **Start for real** clears demo stores
+stores and reseeds the original sample. **Start for real** deletes demo changes
 before loading the real workspace. Browser-context teardown also provides a
 clean verifier sandbox.
 

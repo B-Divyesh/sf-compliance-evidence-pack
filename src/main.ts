@@ -15,6 +15,7 @@ let unlocked = false;
 let installPrompt: BeforeInstallPromptEvent | null = null;
 let saveQueue: Promise<void> = Promise.resolve();
 let renderRevision = 0;
+let dashboardRenderTimer: number | null = null;
 
 type BeforeInstallPromptEvent = Event & { prompt(): Promise<void>; userChoice: Promise<{ outcome: string }> };
 
@@ -74,9 +75,23 @@ async function save(packetId: string, action: string, change: (current: Packet) 
   saveQueue = pending.catch(() => undefined);
   await pending;
   announce(action);
-  // Do not replace an inline form while its draft is being typed. The queued
-  // submit repaint runs once that draft has been committed.
-  if (!hasInlineDraft()) await render();
+  scheduleDashboardRender();
+}
+
+/**
+ * Keep a dashboard DOM instance alive through a burst of edits. In particular,
+ * a checkbox change followed by a question submit must not replace the question
+ * form between pointer down and submit. The queue is the source of truth; this
+ * repaint happens only after every already-requested mutation has committed.
+ */
+function scheduleDashboardRender(): void {
+  if (dashboardRenderTimer !== null) window.clearTimeout(dashboardRenderTimer);
+  dashboardRenderTimer = window.setTimeout(() => {
+    dashboardRenderTimer = null;
+    void saveQueue.then(async () => {
+      if (!hasInlineDraft()) await render();
+    });
+  }, 80);
 }
 
 function navigate(path: string): void {
@@ -143,14 +158,14 @@ function networkState(): void {
 }
 
 function licenseCard(compact = false): string {
-  if (unlocked) return `<section class="unlock-card unlocked" aria-label="Lifetime unlock active"><p class="eyebrow">Lifetime unlock</p><p><strong>Unlimited packets active</strong></p><button class="text-button" id="remove-license" type="button">Remove from this device</button></section>`;
+  if (unlocked) return `<section class="unlock-card unlocked" aria-label="Lifetime license active"><p class="eyebrow">Lifetime license</p><p><strong>Unlimited packets active</strong></p><button class="text-button" id="remove-license" type="button">Remove from this device</button></section>`;
   return `<section class="unlock-card ${compact ? 'compact' : ''}" aria-labelledby="unlock-title">
-    <p class="eyebrow">Optional lifetime unlock</p>
+    <p class="eyebrow">Lifetime license</p>
     <h2 id="unlock-title">Keep every filing period</h2>
     <p>${lifetimePrice} once. Your first complete packet is free; unlimited packets and duplication require the lifetime license.</p>
-    <a class="button small" href="${checkoutUrl}">Buy lifetime access</a>
-    <details><summary>Already bought it?</summary><form id="restore-form"><label for="license-token">License token</label><input id="license-token" name="token" autocomplete="off" required><button class="secondary small" type="submit" aria-label="Verify and restore license">Verify and restore</button></form></details>
-    <p class="micro">Checkout is hosted by Sociobot/Dodo, the merchant of record. Refunds are handled there.</p>
+    <a class="button small" href="${checkoutUrl}">Buy a lifetime license</a>
+    <details><summary>Restore a lifetime license</summary><form id="restore-form"><label for="license-token">License token</label><input id="license-token" name="token" autocomplete="off" required><button class="secondary small" type="submit" aria-label="Verify and restore lifetime license">Verify and restore</button></form></details>
+    <p class="micro">Checkout opens on Sociobot/Dodo.</p>
   </section>`;
 }
 
@@ -191,11 +206,12 @@ function hasInlineDraft(): boolean {
 
 function landing(): string {
   return `<section class="hero">
-    <div class="hero-copy"><p class="eyebrow neon">Evidence in order. Questions in view.</p><h1>Prepare evidence <span>for your accountant.</span></h1><p class="lede">For freelancers with cross-border income, turn one filing period’s invoices, receipts, gaps, and questions into an accountant-ready packet.</p><div class="hero-actions"><a class="button" href="/demo" data-demo-link>Try it with sample data</a><button class="ghost create-button" type="button">Start your packet</button><input type="file" id="import-input" accept="application/json,.json" hidden><span>The sample opens as a complete working packet.</span></div><ul class="hero-facts"><li>No account. Data stays in this browser.</li><li>Works offline after your first visit.</li><li>One packet free. Unlimited use costs ${lifetimePrice} once.</li></ul><button class="text-button" id="import-button" type="button">Import a JSON backup</button></div>
+    <div class="hero-copy"><p class="eyebrow neon">Evidence in order. Questions in view.</p><h1>Prepare evidence <span>for your accountant.</span></h1><p class="lede">For freelancers with cross-border income, organize one filing period’s invoices, receipts, evidence gaps, and questions for accountant review.</p><div class="hero-actions"><a class="button" href="/demo" data-demo-link>Try it with sample data</a><button class="ghost create-button" type="button">Start your packet</button><input type="file" id="import-input" accept="application/json,.json" hidden><span>The sample opens with files, evidence gaps, and accountant questions.</span></div><ul class="hero-facts"><li>No account. Data stays in this browser.</li><li>Works offline after your first visit.</li><li>One packet free. Unlimited use costs ${lifetimePrice} once.</li></ul><button class="text-button" id="import-button" type="button">Import a JSON backup</button></div>
     <figure><picture><source media="(max-width: 760px)" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw=="><img src="/assets/deadline-packet-hero.webp" width="1280" height="853" alt="A kraft evidence folder, receipts, invoice sheets, and a calculator arranged on a rain-dark night-market counter" fetchpriority="high" decoding="async"></picture><figcaption><span>01</span> From scattered evidence to one reviewable handoff.</figcaption></figure>
   </section>
-  <section class="promise-band" aria-label="How it works"><ol><li><b>01</b><span><strong>Set the period</strong>Choose your own handoff date.</span></li><li><b>02</b><span><strong>Gather the proof</strong>Mark gaps without guesswork.</span></li><li><b>03</b><span><strong>Export one packet</strong>ZIP + PDF index for review.</span></li></ol></section>
-  <section class="two-up"><div><p class="eyebrow">Built for human review</p><h2>Not another filing portal.</h2><p>Deadline Packet doesn’t calculate tax, interpret rules, or submit anything. It helps you arrive at the accountant conversation with the evidence—and the unknowns—clearly labelled.</p><ul class="ticks"><li>Local IndexedDB storage</li><li>Attachments included in your ZIP</li><li>Missing evidence listed automatically</li><li>Open questions kept beside the files</li></ul></div>${licenseCard()}</section>
+  <section class="packet-preview" aria-labelledby="preview-title"><div><p class="eyebrow">Sample packet view</p><h2 id="preview-title">See the evidence gaps before handoff.</h2><p>Files, checklist states, and questions stay together in one packet.</p><a class="text-link" href="/demo" data-demo-link>Open the sample packet →</a></div><div class="preview-slip" aria-label="Sample evidence packet summary"><p class="folio">Apr–Jun / Review desk</p><strong>3 of 7 evidence groups ready</strong><ul><li><span>Business expense receipts</span><b>Evidence gap</b></li><li><span>Relevant contracts</span><b>Evidence gap</b></li><li><span>Which exchange-rate record should I use?</span><b>Open question</b></li></ul><span>2 attached sample files · Export bar ready</span></div></section>
+  <section class="promise-band" aria-label="How it works"><ol><li><b>01</b><span><strong>Set the period</strong>Choose your own handoff date.</span></li><li><b>02</b><span><strong>Gather the proof</strong>See which checklist items are still missing.</span></li><li><b>03</b><span><strong>Export one packet</strong>ZIP + PDF index for review.</span></li></ol></section>
+  <section class="two-up"><div><p class="eyebrow">Built for human review</p><h2>Not another filing portal.</h2><p>Deadline Packet doesn’t calculate tax, interpret rules, or submit anything. It keeps evidence gaps and accountant questions in the same packet.</p><ul class="ticks"><li>Stored in this browser</li><li>Attachments included in your ZIP</li><li>Evidence gaps follow the checklist</li><li>Open questions stay beside the files</li></ul></div>${licenseCard()}</section>
   ${createDialog()}`;
 }
 
@@ -223,7 +239,9 @@ function dashboard(packet: Packet, files: EvidenceFile[]): string {
   const percent = total ? Math.round(complete / total * 100) : 0;
   const missing = packet.checklist.filter((item) => !item.complete);
   const openQuestions = packet.questions.filter((item) => !item.answered);
-  return `<div class="app-layout">${packetSidebar(packet)}<article class="packet-workbench">
+  // The workbench comes first in DOM order so heading navigation reaches the
+  // page h1 before any drawer labels; CSS places the drawer on the left.
+  return `<div class="app-layout"><article class="packet-workbench">
     <header class="packet-heading"><div><p class="eyebrow">${escapeHtml(packet.periodStart)} — ${escapeHtml(packet.periodEnd)}</p><h1>${escapeHtml(packet.name)}</h1><p class="due-line"><span aria-hidden="true"></span>${escapeHtml(daysLabel(packet.deadline))} · ${formatDate(packet.deadline)}</p></div><div class="completion-stamp"><strong>${percent}%</strong><span>${complete} of ${total} evidence groups ready</span></div></header>
     <progress class="progress-track" aria-label="Packet checklist completion" max="100" value="${percent}">${percent}%</progress>
     <section class="summary-strip" aria-label="Packet summary"><div><strong>${files.length}</strong><span>files attached</span></div><div class="attention"><strong>${missing.length}</strong><span>evidence gaps</span></div><div><strong>${openQuestions.length}</strong><span>open questions</span></div><div><strong>${packet.accountant ? '1' : '—'}</strong><span>${packet.accountant ? escapeHtml(packet.accountant) : 'contact not set'}</span></div></section>
@@ -232,7 +250,7 @@ function dashboard(packet: Packet, files: EvidenceFile[]): string {
         <ul class="checklist">${packet.checklist.map((item) => `<li class="${item.complete ? 'is-complete' : ''}"><label><input type="checkbox" data-check="${item.id}" ${item.complete ? 'checked' : ''}><span class="custom-check" aria-hidden="true"></span><span><strong>${escapeHtml(item.label)}</strong><small>${item.complete ? 'Ready for review' : 'Still needed'}</small></span></label>${item.custom ? `<button class="row-delete" type="button" data-delete-check="${item.id}" aria-label="Remove ${escapeHtml(item.label)}">×</button>` : ''}</li>`).join('')}</ul>
         <form class="inline-form" id="checklist-form"><label class="sr-only" for="checklist-item">Add a custom evidence item</label><input data-preserve-draft id="checklist-item" name="label" required maxlength="100" placeholder="Add another evidence item"><button class="secondary" type="submit">Add item</button></form>
       </section>
-      <aside class="missing-board" aria-labelledby="missing-title"><p class="folio">Live gap list</p><h2 id="missing-title">Missing evidence</h2>${missing.length ? `<ul>${missing.map((item) => `<li><span aria-hidden="true">!</span>${escapeHtml(item.label)}</li>`).join('')}</ul>` : `<div class="clear-state"><span aria-hidden="true">✓</span><p><strong>No checklist gaps.</strong><br>Review your files and questions before export.</p></div>`}<p class="micro">This list follows your checklist. It is not a legal completeness check.</p></aside>
+      <aside class="missing-board" aria-labelledby="missing-title"><p class="folio">Live evidence-gap list</p><h2 id="missing-title">Evidence gaps</h2>${missing.length ? `<ul>${missing.map((item) => `<li><span aria-hidden="true">!</span>${escapeHtml(item.label)}</li>`).join('')}</ul>` : `<div class="clear-state"><span aria-hidden="true">✓</span><p><strong>No evidence gaps.</strong><br>Review your files and questions before export.</p></div>`}<p class="micro">This list follows your checklist. It is not a legal completeness check.</p></aside>
     </div>
     <section class="paper-panel files-panel" aria-labelledby="files-title"><div class="section-heading"><div><p class="folio">02 / Supporting files</p><h2 id="files-title">Attach the evidence</h2><p>Files are copied into this browser and included when you export.</p></div><label class="button file-button" for="file-input">Add files</label><input type="file" id="file-input" multiple hidden></div>
       <div class="upload-note"><span aria-hidden="true">↘</span><p><strong>Local storage only.</strong> Up to 25 MB per file. Keep your exported ZIP somewhere you back up.</p></div>
@@ -247,12 +265,12 @@ function dashboard(packet: Packet, files: EvidenceFile[]): string {
       <div class="history"><h3>Recent history</h3><ol>${packet.history.slice(0, 8).map((entry) => `<li><span>${escapeHtml(entry.action)}</span><time datetime="${entry.at}">${new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(entry.at))}</time></li>`).join('')}</ol></div>
       <div class="danger-zone">${unlocked ? `<button class="ghost" id="duplicate-packet" type="button">Duplicate as a new period</button>` : ''}<button class="danger" id="delete-packet" type="button" aria-label="Delete packet and local files">Delete packet and local files</button></div>
     </details>
-  </article></div>${createDialog()}`;
+  </article>${packetSidebar(packet)}</div>${createDialog()}`;
 }
 
 function legalPage(kind: 'privacy' | 'terms'): string {
-  if (kind === 'privacy') return `<article class="legal"><p class="eyebrow">Plain-language policy · 28 August 2026</p><h1>Privacy, without fine print.</h1><p class="lede">Deadline Packet is designed so your evidence does not need to leave your device.</p><h2>What is stored</h2><p>Packet names, dates, checklist states, questions, notes, and attachments are stored in your browser’s IndexedDB. Where Web Crypto is available, attachment bytes use AES-256-GCM with a non-exportable key kept in the same browser profile. This protects data at rest, but it is not a substitute for device security. A license token and last verification result are stored in localStorage. We do not run analytics or advertising trackers.</p><h2>What leaves your device</h2><p>Your evidence never leaves automatically. If you buy or verify a lifetime license, your browser contacts the Sociobot billing API with the license token. Checkout is hosted by Sociobot/Dodo; their payment privacy terms apply there. Export only creates a download on your device.</p><h2>Retention and control</h2><p>Data remains until you delete a packet, clear this site’s browser storage, or uninstall it and clear its data. Export a JSON backup or accountant ZIP before clearing storage. We cannot recover local data or a browser key after it is cleared.</p><h2>Network and offline use</h2><p>The app shell is cached by a service worker. Once opened, packet work remains available offline. License verification is retried when a network is available and never blocks the free experience.</p><a class="text-link" href="/" data-route>← Return to your packets</a></article>`;
-  return `<article class="legal"><p class="eyebrow">Terms · 28 August 2026</p><h1>A preparation tool, not a filing service.</h1><p class="lede">By using Deadline Packet, you agree to use it as an organizational aid for human review.</p><h2>No professional advice</h2><p>The app does not calculate tax, determine legal requirements, validate document sufficiency, submit returns, or run OCR. It does not provide tax, accounting, or legal advice. Deadlines are dates you enter. Confirm all requirements with a qualified professional.</p><h2>Your data and exports</h2><p>You control the content you add and are responsible for lawful handling, backups, and secure delivery of exports. The software is provided as-is under the MIT License.</p><h2>Lifetime unlock</h2><p>${lifetimePrice} is a one-time purchase for unlimited packets and packet duplication in this product. Sociobot/Dodo is the merchant of record. Refunds are handled through the merchant and revoke the associated license. Core exports and your first complete packet do not require purchase.</p><h2>Acceptable use</h2><p>Do not use the service or billing verification endpoint unlawfully, attempt to disrupt it, or misrepresent generated indexes as official filings.</p><a class="text-link" href="/" data-route>← Return to your packets</a></article>`;
+  if (kind === 'privacy') return `<article class="legal"><p class="eyebrow">Plain-language policy · 28 August 2026</p><h1>Privacy, without fine print.</h1><p class="lede">Deadline Packet keeps packet details in this browser.</p><h2>What is stored</h2><p>Packet names, dates, checklist states, questions, notes, and attachments stay in this browser. When supported, your browser encrypts attached files before storing them. A lifetime-license token and its last verification result stay in localStorage. We do not run analytics or advertising trackers.</p><h2>What leaves your device</h2><p>Your evidence never leaves automatically. The app contacts Sociobot only when you buy or verify a lifetime license. Checkout opens on Sociobot/Dodo. Export creates a download on your device.</p><h2>Retention and control</h2><p>Data remains until you delete a packet, clear this site’s browser storage, or uninstall it and clear its data. Export a JSON backup or accountant ZIP before clearing storage. We cannot recover local data or a browser key after it is cleared.</p><h2>Network and offline use</h2><p>The app shell is cached by a service worker. Once opened, packet work remains available offline. License verification never blocks the free experience.</p><a class="text-link" href="/" data-route>← Return to your packets</a></article>`;
+  return `<article class="legal"><p class="eyebrow">Terms · 28 August 2026</p><h1>A preparation tool, not a filing service.</h1><p class="lede">By using Deadline Packet, you agree to use it as an organizational aid for human review.</p><h2>No professional advice</h2><p>The app does not calculate tax, determine legal requirements, validate document sufficiency, submit returns, or run OCR. It does not provide tax, accounting, or legal advice. Deadlines are dates you enter. Confirm all requirements with a qualified professional.</p><h2>Your data and exports</h2><p>You control the content you add and are responsible for lawful handling, backups, and secure delivery of exports. The software is provided as-is under the MIT License.</p><h2>Lifetime license</h2><p>${lifetimePrice} is a one-time purchase for unlimited packets and packet duplication in this product. Checkout opens on Sociobot/Dodo. Core exports and your first complete packet do not require purchase.</p><h2>Acceptable use</h2><p>Do not use the service or billing verification endpoint unlawfully, attempt to disrupt it, or misrepresent generated indexes as official filings.</p><a class="text-link" href="/" data-route>← Return to your packets</a></article>`;
 }
 
 async function render(moveFocus = false): Promise<void> {
@@ -461,7 +479,7 @@ function bindDashboard(packet: Packet, files: EvidenceFile[]): void {
 }
 
 async function importBackup(file: File): Promise<void> {
-  if (packets.length >= 1 && !unlocked) { announce('Importing additional packets requires the lifetime unlock.'); return; }
+  if (packets.length >= 1 && !unlocked) { announce('Importing additional packets requires the lifetime license.'); return; }
   try {
     const data = parseBackup(JSON.parse(await file.text()));
     if (!data) throw new Error('Invalid backup');

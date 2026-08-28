@@ -1,9 +1,9 @@
 # Deadline Packet
 
-Prepare accountant-ready evidence packets for cross-border freelance filing periods.
+Prepare evidence packets for accountant review.
 
 Deadline Packet organizes one filing period’s invoices, receipts, statements,
-missing items, notes, and questions. It exports them for accountant review. It
+evidence gaps, notes, and questions. It exports them for accountant review. It
 does not calculate tax, decide legal requirements, submit returns, or run OCR.
 
 Live product: <https://compliance-evidence-pack.sociobot.in>
@@ -12,24 +12,24 @@ One-click demo: <https://compliance-evidence-pack.sociobot.in/demo>
 
 ## What it does
 
-- Stores packet data and attachments in IndexedDB on this device.
-- Encrypts attachment bytes with device-local AES-256-GCM when Web Crypto is available.
-- Builds a missing-evidence list from the editable checklist.
+- Stores packet details and attached files in this browser.
+- When supported, your browser encrypts attached files before storing them.
+- Builds an evidence-gap list from the editable checklist.
 - Exports an accountant ZIP, PDF index, and JSON backup you can import.
 - Keeps edits and exports working offline after the first visit.
 - Includes one packet free. A US$12 one-time license adds unlimited packets and duplication.
 
-The app does not upload packet contents automatically. License purchase and
-verification are the only optional third-party requests. Clearing browser site
+The app does not upload packet contents automatically. The app contacts
+Sociobot only when you buy or verify a lifetime license. Clearing browser site
 data removes local packets, so keep an exported backup somewhere safe.
 
 ## Try the isolated demo
 
-Open `/demo` or `/?demo=1`. It starts with a realistic Apr–Jun cross-border
-packet, two sample evidence files, four gaps, and two accountant questions.
-Demo work uses the separate `deadline-packet-demo` IndexedDB database. **Reset
-demo** restores the sample. **Start for real** clears demo data and opens the
-real, empty workspace. See [the demo contract](./.factory/demo.md).
+Open `/demo` or `/?demo=1`. It opens an Apr–Jun cross-border packet with two
+sample files, four evidence gaps, and two accountant questions. Demo changes
+stay in a separate browser store named `deadline-packet-demo`. **Reset demo**
+restores the sample. **Start for real** deletes demo changes and opens your real
+workspace. See [the demo contract](./.factory/demo.md).
 
 ## Run locally
 
@@ -40,12 +40,11 @@ npm ci
 npm run dev
 ```
 
-No backend or environment variable is required. Billing verification contacts
-the public Sociobot API only when a license token exists.
+No backend or environment variable is required.
 
 ## Test and build
 
-Playwright 1.58.2 is pinned. Install its Chromium binary outside the factory
+The project requires Playwright 1.58.2. Install its Chromium binary outside the factory
 image with `npx playwright install chromium`.
 
 ```sh
@@ -59,10 +58,9 @@ production build lands in `dist/`, with `index.html` at its root.
 
 ## Deploy
 
-Build with `npm run build` and deploy `dist/` as a static site. The generated
-output includes direct demo and policy entries, a designed 404, the PWA shell,
-and `staticwebapp.config.json` for routing, MIME types, cache rules, and security
-headers. The factory owns DNS and infrastructure.
+Build with `npm run build` and deploy `dist/` as a static site. The build includes
+pages for the demo, policies, and 404 errors. It also includes offline app files
+and Azure Static Web Apps configuration. The factory owns DNS and infrastructure.
 
 ## Project map
 
