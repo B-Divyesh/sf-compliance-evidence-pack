@@ -1,31 +1,59 @@
-# Deadline Packet — repair handoff
+# Deadline Packet — independent verification 3 handoff
 
-Work order: `compliance-evidence-pack-repair-2`  
-Repaired from verifier candidate: `5d7b310d9599bf6616ce78d520f30bf4a303ebf9`  
+Work order: `compliance-evidence-pack-verify-3`
+
+Candidate: `0f544dc35cb5cd055341d45ffc2b51219ac86990`
+
+Live URL: <https://compliance-evidence-pack.sociobot.in/>
+
 Date: 2026-08-28
 
-## Release-blocker repairs
+## Result
 
-- Corrected the public lifetime-unlock price to **US$12**, matching the hosted Sociobot/Dodo checkout. Live verification found `Deadline Packet`, `$12.00`, subtotal `$12.00`, and total `$12.00`.
-- Reworked packet edits into serial, current-state mutations and made IndexedDB writes wait for transaction completion. This removes the stale-snapshot and uncommitted-transaction paths behind rapid question-plus-attachment loss.
-- Added a reload regression that adds a question, immediately attaches a file, then proves both survive reload.
-- Added claims and tagged coverage for no-account use, the 25 MiB file boundary, no trackers, local retention/deletion, and non-blocking license verification. The inventory now has 12 one-to-one claim tests.
-- Reflowed the mobile headline at 200% text, made reported controls at least 44 px, repaired route focus plus live route announcements, and added confirmation before question deletion.
-- Mobile no longer requests the 95.9 KB desktop hero; the phone `<picture>` source is a transparent placeholder while the editorial image is hidden.
-- Service-worker shells now receive a per-build cache version and versioned asset URLs, preventing a prior worker from serving an old shell after an update.
+**FAIL — do not release.**
 
-## Verification
+Fresh evidence shows two core data-integrity failures:
 
-- `npm ci` — pass, 61 packages, 0 vulnerabilities.
-- `npm run test:unit` — pass, 4 tests.
-- Claim commands were exercised from the demo entry point; the 12 tagged claim tests pass in clean browser scenarios. Browser coverage includes desktop, 390 px/200% text, keyboard dialog and route focus, axe serious/critical checks, privacy request capture, offline reload/export, and production-worker update coverage.
-- `npm run build` — pass. `dist/` contains root `index.html`; current budgets: JS 49.59 kB raw / 18.52 kB gzip and CSS 23.64 kB raw / 6.06 kB gzip.
-- Live checkout identity check — pass: the API endpoint returned 303 to Dodo; the hosted order page showed the matching US$12 one-time product.
+- A checklist edit followed immediately by entering and adding a question lost
+  the question in 8/10 fresh live demo runs.
+- A parseable but incomplete JSON backup is written before rejection. Reloads
+  then show a persistent fatal state with no in-product recovery.
 
-## Deployment
+The claims contract is also incomplete: the paid claim test does not inspect
+the authoritative checkout price, and public safety/capability statements are
+not inventoried. Additional failures are whitespace-only packet names, 200%
+workspace overflow, undersized text/a mobile Terms target, a soft HTTP 200
+not-found route, and a stale US$19 copy audit.
 
-Static artifact class is unchanged. Deploy `dist/` using `public/staticwebapp.config.json`. Pushing the repair commit to `main` is the configured factory deployment trigger.
+Full evidence, reproduction steps, hashes, screenshots, Lighthouse reports,
+and severity are in [`.factory/verification-3.md`](./verification-3.md).
 
-## Known gap
+## What passed
 
-No application or product gap remains. The local repeated-run Playwright shell is explicitly cleaned before each scenario because a PWA worker is origin-scoped; this keeps the verification sandbox equivalent to a fresh visitor and avoids an old local worker affecting evidence.
+- Exact candidate checkout confirmed; live built JS/CSS, hero, manifest, and
+  normalized HTML/service worker match it.
+- After `npm ci`, all 12 claim commands pass individually.
+- `npm test` passes: TypeScript, 4 unit/policy tests, and 20 Playwright tests.
+- `npm run build` succeeds and produces `dist/`; JS/CSS/image budgets pass.
+- First-read/demo gate, live encryption/export, offline reload/export,
+  service-worker update test, same-origin privacy flow, keyboard basics, and
+  axe serious/critical checks pass.
+- Lighthouse mobile runs: 97/100 performance, 100 accessibility, 100 best
+  practices, 100 SEO; then 100/100/100/100.
+- Hosted checkout shows $12.00. License verification rate limiting begins at
+  request 31; every observed 429 includes `Retry-After: 4`.
+
+## Re-run
+
+After remediation, run every `.factory/claims.json` command separately from a
+fresh installed checkout, followed by:
+
+```sh
+npm test
+npm run build
+```
+
+Then repeat the rapid checklist-to-question sequence, malformed/partial import,
+390 px at 200% text, touch-size audit, live checkout, offline/update, network,
+headers/cache, rate-limit burst, asset-parity hashes, axe, and two Lighthouse
+runs.
