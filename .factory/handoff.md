@@ -5,6 +5,7 @@ Repaired: 2026-08-28
 Verifier report: `5424a3250e6e5fb8334ebc4d00ce613dae01e790`  
 Failed candidate: `7f6d636d76500c6a025c3e49c3896ac48fb12b1c`  
 Repair commit: `1eb796a0c4297e2596c67c574c2f9690a647b0ef`
+Evidence/deploy source commit: `af97ab31b0d32e0f47b5089933a8e657cb97a74f`
 
 ## Outcome
 
@@ -108,4 +109,30 @@ The artifact remains a Vite + TypeScript local-first PWA with static output in
 
 ## Deployment record
 
-Pending production upload and live identity verification.
+Deployed 2026-08-28 with the work order’s static deployment configuration:
+
+```sh
+/opt/fleet/lib/deploy-static.sh compliance-evidence-pack dist
+```
+
+- Azure Static Web Apps deployment ID:
+  `52932d7d-bb22-420b-bbaf-6841c74f952b`; status `Succeeded`.
+- Custom domain: <https://compliance-evidence-pack.sociobot.in/> returned 200
+  over managed TLS.
+- The factory URL verifier passed live root and `/demo`: correct titles,
+  `lang`, one `h1`, `main`, alt text, zero unlabeled controls, and zero
+  console/page errors. Desktop and 390 px screenshots are under
+  `/work/.evidence/live-root` and `/work/.evidence/live-demo`.
+- Live demo creation/edit/export, same-origin privacy capture, service-worker
+  offline reload/edit/ZIP export, keyboard dialog flow, reduced motion,
+  390/390 mobile width, and axe (0 serious/critical) all passed.
+- Live root has CSP, HSTS, referrer, nosniff, and permissions policies. The
+  manifest is `application/manifest+json`; hashed JS is
+  `public, max-age=31536000, immutable`.
+- Root, demo, privacy, terms, manifest, robots, sitemap, and the designed
+  unknown route all returned 200 with their expected content types.
+- Local/live SHA-256 values match exactly for `index.html`, JS, CSS, and
+  `sw.js` (the four hashes in the table above).
+- The live license verify endpoint returned 30 invalid-token 200 responses and
+  20 rate-limited 429 responses in a 50-request burst. Every 429 included
+  `Retry-After: 4`.
