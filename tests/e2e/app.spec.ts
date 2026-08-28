@@ -662,6 +662,8 @@ test('landing and demo keep the reviewed first-screen, preview, navigation, and 
   await page.goto('/demo');
   const firstHeading = await page.locator('#main h1, #main h2').first().evaluate((heading) => heading.tagName);
   expect(firstHeading).toBe('H1');
+  await expect(page.getByRole('button', { name: 'Activate sample license' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Import backup' })).toBeVisible();
 });
 
 test('removing a question requires confirmation and remains reversible before acceptance', async ({ page }) => {

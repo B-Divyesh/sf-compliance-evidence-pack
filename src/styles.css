@@ -333,7 +333,8 @@ input:focus-visible, textarea:focus-visible { outline-color: var(--cyan-dark); }
   .packet-drawer > ul { display: flex; overflow-x: auto; scroll-snap-type: x proximity; padding-bottom: 8px; }
   .packet-drawer > ul li { flex: 0 0 190px; scroll-snap-align: start; }
   .packet-drawer > ul button { min-height: 58px; }
-  .drawer-tools { display: none; }
+  .drawer-tools { display: grid; gap: 16px; margin-top: 24px; }
+  .drawer-tools > .ghost { width: 100%; }
   .packet-workbench { padding: 40px 16px 64px; }
   .packet-heading { display: block; }
   .completion-stamp { width: 100%; min-height: 82px; margin-top: 24px; transform: none; grid-template-columns: auto 1fr; gap: 16px; align-items: center; }
