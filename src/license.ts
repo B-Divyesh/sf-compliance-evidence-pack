@@ -6,6 +6,9 @@ const VERIFY_AFTER = 86_400_000;
 type Verdict = { valid: boolean; checkedAt: number };
 
 export const checkoutUrl = `https://api.sociobot.in/api/v1/products/${SLUG}/checkout`;
+// The registered Sociobot product is US$12. Keep every public price reference
+// tied to this value; checkout remains the authority at purchase time.
+export const lifetimePrice = 'US$12';
 
 export function captureLicense(): void {
   const url = new URL(location.href);

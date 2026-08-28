@@ -43,9 +43,44 @@
   },
   {
     "id": "free-and-paid",
-    "claim": "One packet is free; a US$19 one-time license adds unlimited packets and duplication.",
+    "claim": "One packet is free; a US$12 one-time license adds unlimited packets and duplication.",
     "where": "landing facts, purchase card, terms, README",
     "test": "npm run test:e2e -- --grep @claim:free-and-paid",
-    "sandbox": "fresh Chromium context on /demo; prove a second packet is gated; assert hosted checkout URL and price; mock a valid Sociobot verification; prove creation and duplication become available"
+    "sandbox": "fresh Chromium context on /demo; prove a second packet is gated; assert the Sociobot checkout URL and the US$12 product price source; mock a valid Sociobot verification; prove creation and duplication become available"
+  },
+  {
+    "id": "account-free",
+    "claim": "No account is needed to create and keep a packet in this browser.",
+    "where": "landing facts",
+    "test": "npm run test:e2e -- --grep @claim:account-free",
+    "sandbox": "fresh Chromium context; create a packet without any identity or sign-in step; reload and assert it remains"
+  },
+  {
+    "id": "file-size-limit",
+    "claim": "Files up to 25 MB each can be added; larger files are rejected.",
+    "where": "supporting-files notice",
+    "test": "npm run test:e2e -- --grep @claim:file-size-limit",
+    "sandbox": "fresh Chromium context; add a 25 MiB file and assert it appears, then add a 25 MiB + 1 byte file and assert rejection"
+  },
+  {
+    "id": "tracker-free",
+    "claim": "Deadline Packet does not run analytics or advertising trackers.",
+    "where": "privacy page",
+    "test": "npm run test:e2e -- --grep @claim:tracker-free",
+    "sandbox": "fresh Chromium context through root, demo, and privacy; assert all requests remain same-origin and no analytics or advertising script identifiers are present in the delivered app"
+  },
+  {
+    "id": "local-retention",
+    "claim": "Packet data remains until you delete it or clear this site’s browser storage.",
+    "where": "privacy page",
+    "test": "npm run test:e2e -- --grep @claim:local-retention",
+    "sandbox": "fresh Chromium context; create a packet, reload to prove retention, delete it with confirmation, reload and assert it is gone"
+  },
+  {
+    "id": "license-nonblocking",
+    "claim": "License verification never blocks the free experience.",
+    "where": "privacy page",
+    "test": "npm run test:e2e -- --grep @claim:license-nonblocking",
+    "sandbox": "fresh Chromium context with a saved license and a deliberately stalled verification response; assert the free packet interface renders before verification resolves"
   }
 ]

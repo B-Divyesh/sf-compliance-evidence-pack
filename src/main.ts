@@ -1,7 +1,7 @@
 import './styles.css';
 import { clearLocalData, deleteFile, deletePacket, demoMode, getFiles, getPackets, putFile, putPacket } from './db';
 import { makeBackup, makePdf, makeZip } from './export';
-import { captureLicense, checkoutUrl, hasUnlock, removeLicense, restoreLicense, verifyLicense } from './license';
+import { captureLicense, checkoutUrl, hasUnlock, lifetimePrice, removeLicense, restoreLicense, verifyLicense } from './license';
 import type { EvidenceFile, Packet } from './types';
 import { daysUntil, download, escapeHtml, formatBytes, formatDate, safeFilename, uid } from './utils';
 
@@ -13,6 +13,7 @@ let currentId = localStorage.getItem(currentKey);
 let unlocked = false;
 let installPrompt: BeforeInstallPromptEvent | null = null;
 let saveQueue: Promise<void> = Promise.resolve();
+let renderRevision = 0;
 
 type BeforeInstallPromptEvent = Event & { prompt(): Promise<void>; userChoice: Promise<{ outcome: string }> };
 
@@ -58,24 +59,26 @@ function touch(packet: Packet, action: string): Packet {
   return { ...packet, updatedAt: now, history: [{ at: now, action }, ...packet.history].slice(0, 20) };
 }
 
-async function save(packet: Packet, action: string): Promise<void> {
-  const updated = touch(packet, action);
-  packets = packets.map((item) => item.id === updated.id ? updated : item).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
-  const pending = saveQueue.then(() => putPacket(updated));
+async function save(packetId: string, action: string, change: (current: Packet) => Packet): Promise<void> {
+  // Every edit is derived when it reaches the queue, rather than from a DOM
+  // snapshot captured before an attachment finishes encrypting. This preserves
+  // rapid back-to-back edits across async IndexedDB work.
+  const pending = saveQueue.then(async () => {
+    const current = packets.find((item) => item.id === packetId);
+    if (!current) return;
+    const updated = touch(change(current), action);
+    await putPacket(updated);
+    packets = packets.map((item) => item.id === updated.id ? updated : item).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+  });
   saveQueue = pending.catch(() => undefined);
   await pending;
   announce(action);
   await render();
 }
 
-function latest(packet: Packet): Packet {
-  return packets.find((item) => item.id === packet.id) ?? packet;
-}
-
 function navigate(path: string): void {
   history.pushState({}, '', path);
-  render();
-  requestAnimationFrame(() => main.focus());
+  void render(true);
 }
 
 function samplePacket(): Packet {
@@ -141,7 +144,7 @@ function licenseCard(compact = false): string {
   return `<section class="unlock-card ${compact ? 'compact' : ''}" aria-labelledby="unlock-title">
     <p class="eyebrow">Optional lifetime unlock</p>
     <h2 id="unlock-title">Keep every filing period</h2>
-    <p>US$19 once. Your first complete packet is free; unlimited packets and duplication require the lifetime license.</p>
+    <p>${lifetimePrice} once. Your first complete packet is free; unlimited packets and duplication require the lifetime license.</p>
     <a class="button small" href="${checkoutUrl}">Buy lifetime access</a>
     <details><summary>Already bought it?</summary><form id="restore-form"><label for="license-token">License token</label><input id="license-token" name="token" autocomplete="off" required><button class="secondary small" type="submit" aria-label="Verify and restore license">Verify and restore</button></form></details>
     <p class="micro">Checkout is hosted by Sociobot/Dodo, the merchant of record. Refunds are handled there.</p>
@@ -166,8 +169,8 @@ function createDialog(): string {
 
 function landing(): string {
   return `<section class="hero">
-    <div class="hero-copy"><p class="eyebrow neon">Evidence in order. Questions in view.</p><h1>Prepare evidence<br><span>for your accountant.</span></h1><p class="lede">For freelancers with cross-border income, turn one filing period’s invoices, receipts, gaps, and questions into an accountant-ready packet.</p><div class="hero-actions"><a class="button" href="/demo" data-demo-link>Try it with sample data</a><button class="ghost create-button" type="button">Start your packet</button><input type="file" id="import-input" accept="application/json,.json" hidden><span>The sample opens as a complete working packet.</span></div><ul class="hero-facts"><li>No account. Data stays in this browser.</li><li>Works offline after your first visit.</li><li>One packet free. Unlimited use costs US$19 once.</li></ul><button class="text-button" id="import-button" type="button">Import a JSON backup</button></div>
-    <figure><img src="/assets/deadline-packet-hero.webp" width="1280" height="853" alt="A kraft evidence folder, receipts, invoice sheets, and a calculator arranged on a rain-dark night-market counter" fetchpriority="high" decoding="async"><figcaption><span>01</span> From scattered evidence to one reviewable handoff.</figcaption></figure>
+    <div class="hero-copy"><p class="eyebrow neon">Evidence in order. Questions in view.</p><h1>Prepare evidence <span>for your accountant.</span></h1><p class="lede">For freelancers with cross-border income, turn one filing period’s invoices, receipts, gaps, and questions into an accountant-ready packet.</p><div class="hero-actions"><a class="button" href="/demo" data-demo-link>Try it with sample data</a><button class="ghost create-button" type="button">Start your packet</button><input type="file" id="import-input" accept="application/json,.json" hidden><span>The sample opens as a complete working packet.</span></div><ul class="hero-facts"><li>No account. Data stays in this browser.</li><li>Works offline after your first visit.</li><li>One packet free. Unlimited use costs ${lifetimePrice} once.</li></ul><button class="text-button" id="import-button" type="button">Import a JSON backup</button></div>
+    <figure><picture><source media="(max-width: 760px)" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw=="><img src="/assets/deadline-packet-hero.webp" width="1280" height="853" alt="A kraft evidence folder, receipts, invoice sheets, and a calculator arranged on a rain-dark night-market counter" fetchpriority="high" decoding="async"></picture><figcaption><span>01</span> From scattered evidence to one reviewable handoff.</figcaption></figure>
   </section>
   <section class="promise-band" aria-label="How it works"><ol><li><b>01</b><span><strong>Set the period</strong>Choose your own handoff date.</span></li><li><b>02</b><span><strong>Gather the proof</strong>Mark gaps without guesswork.</span></li><li><b>03</b><span><strong>Export one packet</strong>ZIP + PDF index for review.</span></li></ol></section>
   <section class="two-up"><div><p class="eyebrow">Built for human review</p><h2>Not another filing portal.</h2><p>Deadline Packet doesn’t calculate tax, interpret rules, or submit anything. It helps you arrive at the accountant conversation with the evidence—and the unknowns—clearly labelled.</p><ul class="ticks"><li>Local IndexedDB storage</li><li>Attachments included in your ZIP</li><li>Missing evidence listed automatically</li><li>Open questions kept beside the files</li></ul></div>${licenseCard()}</section>
@@ -227,28 +230,32 @@ function dashboard(packet: Packet, files: EvidenceFile[]): string {
 
 function legalPage(kind: 'privacy' | 'terms'): string {
   if (kind === 'privacy') return `<article class="legal"><p class="eyebrow">Plain-language policy · 28 August 2026</p><h1>Privacy, without fine print.</h1><p class="lede">Deadline Packet is designed so your evidence does not need to leave your device.</p><h2>What is stored</h2><p>Packet names, dates, checklist states, questions, notes, and attachments are stored in your browser’s IndexedDB. Where Web Crypto is available, attachment bytes use AES-256-GCM with a non-exportable key kept in the same browser profile. This protects data at rest, but it is not a substitute for device security. A license token and last verification result are stored in localStorage. We do not run analytics or advertising trackers.</p><h2>What leaves your device</h2><p>Your evidence never leaves automatically. If you buy or verify a lifetime license, your browser contacts the Sociobot billing API with the license token. Checkout is hosted by Sociobot/Dodo; their payment privacy terms apply there. Export only creates a download on your device.</p><h2>Retention and control</h2><p>Data remains until you delete a packet, clear this site’s browser storage, or uninstall it and clear its data. Export a JSON backup or accountant ZIP before clearing storage. We cannot recover local data or a browser key after it is cleared.</p><h2>Network and offline use</h2><p>The app shell is cached by a service worker. Once opened, packet work remains available offline. License verification is retried when a network is available and never blocks the free experience.</p><a class="text-link" href="/" data-route>← Return to your packets</a></article>`;
-  return `<article class="legal"><p class="eyebrow">Terms · 28 August 2026</p><h1>A preparation tool, not a filing service.</h1><p class="lede">By using Deadline Packet, you agree to use it as an organizational aid for human review.</p><h2>No professional advice</h2><p>The app does not calculate tax, determine legal requirements, validate document sufficiency, submit returns, or provide tax, accounting, or legal advice. Deadlines are dates you enter. Confirm all requirements with a qualified professional.</p><h2>Your data and exports</h2><p>You control the content you add and are responsible for lawful handling, backups, and secure delivery of exports. The software is provided as-is under the MIT License.</p><h2>Lifetime unlock</h2><p>US$19 is a one-time purchase for unlimited packets and packet duplication in this product. Sociobot/Dodo is the merchant of record. Refunds are handled through the merchant and revoke the associated license. Core exports and your first complete packet do not require purchase.</p><h2>Acceptable use</h2><p>Do not use the service or billing verification endpoint unlawfully, attempt to disrupt it, or misrepresent generated indexes as official filings.</p><a class="text-link" href="/" data-route>← Return to your packets</a></article>`;
+  return `<article class="legal"><p class="eyebrow">Terms · 28 August 2026</p><h1>A preparation tool, not a filing service.</h1><p class="lede">By using Deadline Packet, you agree to use it as an organizational aid for human review.</p><h2>No professional advice</h2><p>The app does not calculate tax, determine legal requirements, validate document sufficiency, submit returns, or provide tax, accounting, or legal advice. Deadlines are dates you enter. Confirm all requirements with a qualified professional.</p><h2>Your data and exports</h2><p>You control the content you add and are responsible for lawful handling, backups, and secure delivery of exports. The software is provided as-is under the MIT License.</p><h2>Lifetime unlock</h2><p>${lifetimePrice} is a one-time purchase for unlimited packets and packet duplication in this product. Sociobot/Dodo is the merchant of record. Refunds are handled through the merchant and revoke the associated license. Core exports and your first complete packet do not require purchase.</p><h2>Acceptable use</h2><p>Do not use the service or billing verification endpoint unlawfully, attempt to disrupt it, or misrepresent generated indexes as official filings.</p><a class="text-link" href="/" data-route>← Return to your packets</a></article>`;
 }
 
-async function render(): Promise<void> {
+async function render(moveFocus = false): Promise<void> {
+  const revision = ++renderRevision;
   if (main.contains(document.activeElement)) (document.activeElement as HTMLElement)?.blur();
   const path = location.pathname.replace(/\/+$/, '') || '/';
   if (path === '/privacy' || path === '/terms') {
     setTitle(path);
     main.innerHTML = legalPage(path.slice(1) as 'privacy' | 'terms');
     bindRoutes();
+    if (moveFocus) announceRoute();
     return;
   }
   if (path !== '/' && path !== '/demo') {
     setTitle(path);
     main.innerHTML = notFound();
     bindRoutes();
+    if (moveFocus) announceRoute();
     return;
   }
   if (!packets.length) {
     setTitle(demoMode ? '/demo' : '/');
     main.innerHTML = landing();
     bindCommon();
+    if (moveFocus) announceRoute();
     return;
   }
   const packet = packets.find((item) => item.id === currentId) ?? packets[0];
@@ -257,9 +264,17 @@ async function render(): Promise<void> {
   if (demoMode) setTitle('/demo');
   else setTitle('/', packet);
   const files = await getFiles(packet.id);
+  if (revision !== renderRevision) return;
   main.innerHTML = dashboard(packet, files);
   bindCommon();
   bindDashboard(packet, files);
+  if (moveFocus) announceRoute();
+}
+
+function announceRoute(): void {
+  const heading = main.querySelector<HTMLElement>('h1');
+  main.focus();
+  document.querySelector<HTMLElement>('#route-announcer')!.textContent = heading?.textContent?.trim() || 'Page loaded';
 }
 
 function bindRoutes(): void {
@@ -334,18 +349,16 @@ function bindDashboard(packet: Packet, files: EvidenceFile[]): void {
     currentId = button.dataset.select!; render();
   });
   document.querySelectorAll<HTMLInputElement>('[data-check]').forEach((input) => input.onchange = () => {
-    const base = latest(packet);
-    const checklist = base.checklist.map((item) => item.id === input.dataset.check ? { ...item, complete: input.checked } : item);
-    save({ ...base, checklist }, input.checked ? 'Evidence marked ready' : 'Evidence marked missing');
+    const itemId = input.dataset.check!;
+    void save(packet.id, input.checked ? 'Evidence marked ready' : 'Evidence marked missing', (current) => ({ ...current, checklist: current.checklist.map((item) => item.id === itemId ? { ...item, complete: input.checked } : item) }));
   });
   document.querySelectorAll<HTMLButtonElement>('[data-delete-check]').forEach((button) => button.onclick = () => {
-    const base = latest(packet); const item = base.checklist.find((value) => value.id === button.dataset.deleteCheck);
-    if (item && confirm(`Remove “${item.label}” from this checklist?`)) save({ ...base, checklist: base.checklist.filter((value) => value.id !== item.id) }, 'Custom evidence item removed');
+    const item = packet.checklist.find((value) => value.id === button.dataset.deleteCheck);
+    if (item && confirm(`Remove “${item.label}” from this checklist?`)) void save(packet.id, 'Custom evidence item removed', (current) => ({ ...current, checklist: current.checklist.filter((value) => value.id !== item.id) }));
   });
   document.querySelector<HTMLFormElement>('#checklist-form')?.addEventListener('submit', (event) => {
     event.preventDefault(); const data = new FormData(event.currentTarget as HTMLFormElement); const label = String(data.get('label')).trim();
-    const base = latest(packet);
-    if (label) save({ ...base, checklist: [...base.checklist, { id: uid(), label, complete: false, custom: true }] }, 'Custom evidence item added');
+    if (label) void save(packet.id, 'Custom evidence item added', (current) => ({ ...current, checklist: [...current.checklist, { id: uid(), label, complete: false, custom: true }] }));
   });
   document.querySelector<HTMLInputElement>('#file-input')?.addEventListener('change', async (event) => {
     const input = event.currentTarget as HTMLInputElement;
@@ -358,34 +371,32 @@ function bindDashboard(packet: Packet, files: EvidenceFile[]): void {
         const file: EvidenceFile = { id: uid(), packetId: packet.id, name: blob.name, type: blob.type || 'application/octet-stream', size: blob.size, category: 'Supporting evidence', note: '', addedAt: new Date().toISOString(), blob };
         await putFile(file);
       }
-      await save(latest(packet), `${selected.length} file${selected.length === 1 ? '' : 's'} saved locally`);
+      await save(packet.id, `${selected.length} file${selected.length === 1 ? '' : 's'} saved locally`, (current) => current);
     } catch { announce('The files could not be saved. Check available browser storage and try again.'); }
   });
   document.querySelectorAll<HTMLButtonElement>('[data-delete-file]').forEach((button) => button.onclick = async () => {
     const file = files.find((value) => value.id === button.dataset.deleteFile);
     if (file && confirm(`Remove “${file.name}” from this packet? This only removes the local copy.`)) {
-      await deleteFile(file.id); await save(latest(packet), 'Local file removed');
+      await deleteFile(file.id); await save(packet.id, 'Local file removed', (current) => current);
     }
   });
   document.querySelector<HTMLFormElement>('#question-form')?.addEventListener('submit', (event) => {
     event.preventDefault(); const text = String(new FormData(event.currentTarget as HTMLFormElement).get('text')).trim();
-    const base = latest(packet);
-    if (text) save({ ...base, questions: [...base.questions, { id: uid(), text, answered: false }] }, 'Question added');
+    if (text) void save(packet.id, 'Question added', (current) => ({ ...current, questions: [...current.questions, { id: uid(), text, answered: false }] }));
   });
   document.querySelectorAll<HTMLInputElement>('[data-question]').forEach((input) => input.onchange = () => {
-    const base = latest(packet);
-    const questions = base.questions.map((question) => question.id === input.dataset.question ? { ...question, answered: input.checked } : question);
-    save({ ...base, questions }, input.checked ? 'Question marked answered' : 'Question reopened');
+    const questionId = input.dataset.question!;
+    void save(packet.id, input.checked ? 'Question marked answered' : 'Question reopened', (current) => ({ ...current, questions: current.questions.map((question) => question.id === questionId ? { ...question, answered: input.checked } : question) }));
   });
   document.querySelectorAll<HTMLButtonElement>('[data-delete-question]').forEach((button) => button.onclick = () => {
-    const base = latest(packet);
-    save({ ...base, questions: base.questions.filter((question) => question.id !== button.dataset.deleteQuestion) }, 'Question removed');
+    const question = packet.questions.find((value) => value.id === button.dataset.deleteQuestion);
+    if (question && confirm(`Remove “${question.text}” from questions for the accountant?`)) void save(packet.id, 'Question removed', (current) => ({ ...current, questions: current.questions.filter((value) => value.id !== question.id) }));
   });
   document.querySelector<HTMLFormElement>('#details-form')?.addEventListener('submit', (event) => {
     event.preventDefault(); const data = new FormData(event.currentTarget as HTMLFormElement);
     const periodStart = String(data.get('periodStart')); const periodEnd = String(data.get('periodEnd'));
     if (periodStart > periodEnd) { announce('The period start must be before the period end.'); return; }
-    save({ ...latest(packet), periodStart, periodEnd, deadline: String(data.get('deadline')), accountant: String(data.get('accountant')).trim(), note: String(data.get('note')).trim() }, 'Packet details saved');
+    void save(packet.id, 'Packet details saved', (current) => ({ ...current, periodStart, periodEnd, deadline: String(data.get('deadline')), accountant: String(data.get('accountant')).trim(), note: String(data.get('note')).trim() }));
   });
   document.querySelector<HTMLButtonElement>('#zip-export')?.addEventListener('click', async (event) => {
     const button = event.currentTarget as HTMLButtonElement; button.disabled = true; button.textContent = 'Packaging…';
@@ -465,7 +476,7 @@ async function start(): Promise<void> {
   });
 }
 
-window.addEventListener('popstate', () => render());
+window.addEventListener('popstate', () => { void render(true); });
 window.addEventListener('online', networkState);
 window.addEventListener('offline', () => { networkState(); announce('You’re offline. Packet edits and exports still work locally.'); });
 window.addEventListener('beforeinstallprompt', (event) => {

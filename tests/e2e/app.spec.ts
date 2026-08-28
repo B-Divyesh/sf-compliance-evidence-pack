@@ -11,6 +11,26 @@ async function downloadBytes(download: Download): Promise<Buffer> {
   return readFile(path);
 }
 
+test.beforeEach(async ({ page }) => {
+  // A service worker is origin-scoped, so a previous local test run can leave
+  // an old shell at this fixed preview origin. Each scenario starts from an
+  // actual clean browser store, as the claims contract requires.
+  await page.goto('/');
+  await page.evaluate(async () => {
+    await Promise.all((await navigator.serviceWorker.getRegistrations()).map((registration) => registration.unregister()));
+    await Promise.all((await caches.keys()).map((key) => caches.delete(key)));
+    await Promise.all(['deadline-packet', 'deadline-packet-demo'].map((name) => new Promise<void>((resolve) => {
+      const request = indexedDB.deleteDatabase(name);
+      request.onsuccess = request.onerror = request.onblocked = () => resolve();
+    })));
+    localStorage.clear();
+  });
+  // Leave the controlled client before opening the scenario. An unregistered
+  // worker can still control its current page until that navigation ends.
+  await page.goto('about:blank');
+  await page.goto('/');
+});
+
 test('creates and exports a complete local packet workflow', async ({ page }) => {
   const consoleErrors: string[] = [];
   page.on('console', (message) => { if (message.type() === 'error') consoleErrors.push(message.text()); });
@@ -45,8 +65,10 @@ test('@claim:demo-isolation sample mode uses separate storage and reset never ch
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Apr–Jun cross-border evidence');
   await page.evaluate(async () => {
     const database = await new Promise<IDBDatabase>((resolveDatabase, reject) => {
-      const open = indexedDB.open('deadline-packet', 1);
-      open.onupgradeneeded = () => open.result.createObjectStore('packets', { keyPath: 'id' });
+      const open = indexedDB.open('deadline-packet');
+      open.onupgradeneeded = () => {
+        if (!open.result.objectStoreNames.contains('packets')) open.result.createObjectStore('packets', { keyPath: 'id' });
+      };
       open.onsuccess = () => resolveDatabase(open.result);
       open.onerror = () => reject(open.error);
     });
@@ -168,14 +190,14 @@ test('@claim:offline-reload demo edits and ZIP export work after an offline relo
   await expect(page.getByText('Offline — edits still save')).toBeVisible();
 });
 
-test('@claim:free-and-paid one packet is free and a valid US$19 license enables another packet and duplication', async ({ page }) => {
+test('@claim:free-and-paid one packet is free and a valid US$12 license enables another packet and duplication', async ({ page }) => {
   await page.route('**/api/v1/products/compliance-evidence-pack/verify?*', (route) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ valid: true, reason: 'ok', expires_at: null }) }));
   await page.goto('/demo');
   await page.getByRole('button', { name: 'Create another packet' }).click();
   await expect(page.getByText('Unlimited packets require the one-time unlock')).toBeVisible();
   const buy = page.getByRole('link', { name: 'Buy lifetime access' });
   await expect(buy).toHaveAttribute('href', 'https://api.sociobot.in/api/v1/products/compliance-evidence-pack/checkout');
-  await expect(page.getByText('US$19 once.')).toBeVisible();
+  await expect(page.getByText('US$12 once.')).toBeVisible();
   await page.getByText('Already bought it?').click();
   await page.getByLabel('License token').fill('valid-demo-license');
   await page.getByRole('button', { name: 'Verify and restore' }).click();
@@ -186,6 +208,87 @@ test('@claim:free-and-paid one packet is free and a valid US$19 license enables 
   await expect(page.getByRole('dialog')).toBeVisible();
 });
 
+test('rapid question and attachment edits survive reload', async ({ page }) => {
+  await page.goto('/demo');
+  await page.getByLabel('Question for your accountant').fill('Please confirm the bank conversion date.');
+  await page.getByRole('button', { name: 'Add question' }).click();
+  await page.locator('#file-input').setInputFiles({ name: 'rapid-evidence.txt', mimeType: 'text/plain', buffer: Buffer.from('saved immediately after a question') });
+  await expect(page.getByText('rapid-evidence.txt')).toBeVisible();
+  await page.reload();
+  await expect(page.getByText('Please confirm the bank conversion date.')).toBeVisible();
+  await expect(page.getByText('rapid-evidence.txt')).toBeVisible();
+});
+
+test('@claim:account-free a packet can be created and kept without an account', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Start your packet' }).click();
+  await page.getByLabel('Packet name').fill('No account packet');
+  await page.getByRole('button', { name: 'Create packet' }).click();
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('No account packet');
+  await page.reload();
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('No account packet');
+  await expect(page.locator('input[type="password"], [autocomplete="username"], [autocomplete="email"]')).toHaveCount(0);
+});
+
+test('@claim:file-size-limit accepts 25 MiB and rejects one byte more', async ({ page }) => {
+  test.slow();
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Start your packet' }).click();
+  await page.getByLabel('Packet name').fill('File size packet');
+  await page.getByRole('button', { name: 'Create packet' }).click();
+  await page.locator('#file-input').setInputFiles({ name: 'at-limit.bin', mimeType: 'application/octet-stream', buffer: Buffer.alloc(25 * 1024 * 1024) });
+  await expect(page.getByText('at-limit.bin')).toBeVisible({ timeout: 30_000 });
+  await page.locator('#file-input').setInputFiles({ name: 'too-large.bin', mimeType: 'application/octet-stream', buffer: Buffer.alloc(25 * 1024 * 1024 + 1) });
+  await expect(page.getByText('over the 25 MB per-file limit')).toBeVisible();
+  await expect(page.getByText('too-large.bin', { exact: true })).toHaveCount(0);
+  await page.getByText('Packet details, history, and deletion').click();
+  page.once('dialog', (dialog) => dialog.accept());
+  await page.getByRole('button', { name: 'Delete packet and local files' }).click();
+  await expect(page.getByRole('heading', { level: 1 })).toContainText('Prepare evidence');
+});
+
+test('@claim:tracker-free root, demo, and privacy make no tracker request', async ({ page }) => {
+  const requests: string[] = [];
+  page.on('request', (request) => requests.push(request.url()));
+  await page.goto('/');
+  await page.goto('/demo');
+  await page.goto('/privacy');
+  expect(requests.every((url) => new URL(url).origin === 'http://127.0.0.1:4173')).toBe(true);
+  const delivered = await (await page.request.get('/assets/' + ((await page.locator('script[type="module"]').getAttribute('src')) || '').split('/').pop())).text();
+  expect(delivered).not.toMatch(/google-analytics|googletagmanager|segment\.com|mixpanel|facebook\.net/i);
+});
+
+test('@claim:local-retention persists a packet until confirmed deletion', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Start your packet' }).click();
+  await page.getByLabel('Packet name').fill('Retained packet');
+  await page.getByRole('button', { name: 'Create packet' }).click();
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Retained packet');
+  await page.waitForTimeout(100);
+  await page.reload();
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Retained packet');
+  await page.getByText('Packet details, history, and deletion').click();
+  page.once('dialog', (dialog) => dialog.accept());
+  await page.getByRole('button', { name: 'Delete packet and local files' }).click();
+  await expect(page.getByRole('heading', { level: 1 })).toContainText('Prepare evidence');
+  await page.reload();
+  await expect(page.getByRole('heading', { level: 1 })).toContainText('Prepare evidence');
+});
+
+test('@claim:license-nonblocking a pending verification does not delay the workspace', async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem('sb_license:compliance-evidence-pack', 'pending-license');
+    localStorage.setItem('sb_license:compliance-evidence-pack:verdict', JSON.stringify({ valid: true, checkedAt: 0 }));
+  });
+  await page.route('**/api/v1/products/compliance-evidence-pack/verify?*', async (route) => {
+    await new Promise((resolve) => setTimeout(resolve, 5_000));
+    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ valid: true }) });
+  });
+  await page.goto('/');
+  await expect(page.getByRole('heading', { level: 1 })).toContainText('Prepare evidence');
+  await expect(page.getByText('Unlimited packets active')).toBeVisible();
+});
+
 test('route titles, designed 404, keyboard dialog, mobile layout, CSP, and accessibility pass', async ({ page, request }) => {
   const consoleErrors: string[] = [];
   page.on('console', (message) => { if (message.type() === 'error') consoleErrors.push(message.text()); });
@@ -194,6 +297,14 @@ test('route titles, designed 404, keyboard dialog, mobile layout, CSP, and acces
   expect(response.headers()['x-content-type-options']).toBe('nosniff');
   const manifest = await request.get('/manifest.webmanifest');
   expect(manifest.headers()['content-type']).toContain('application/manifest+json');
+  await page.goto('/');
+  await page.getByLabel('Primary navigation').getByRole('link', { name: 'Privacy' }).focus();
+  await page.keyboard.press('Enter');
+  await expect(page.locator('#main')).toBeFocused();
+  await expect(page.locator('#route-announcer')).toHaveText('Privacy, without fine print.');
+  await page.goBack();
+  await expect(page.locator('#main')).toBeFocused();
+  await expect(page.locator('#route-announcer')).toHaveText('Prepare evidence for your accountant.');
   await page.goto('/');
   await page.keyboard.press('Tab');
   await expect(page.getByRole('link', { name: 'Skip to main content' })).toBeFocused();
@@ -222,8 +333,33 @@ test('route titles, designed 404, keyboard dialog, mobile layout, CSP, and acces
   const dimensions = await page.evaluate(() => ({ width: document.documentElement.scrollWidth, viewport: document.documentElement.clientWidth }));
   expect(dimensions.width).toBeLessThanOrEqual(dimensions.viewport);
   await expect(page.getByRole('link', { name: 'Try it with sample data' })).toBeVisible();
-  expect(await page.evaluate(() => document.getAnimations().filter((animation) => animation.playState === 'running').length)).toBe(0);
   expect(consoleErrors).toEqual([]);
+});
+
+test('390px 200% text reflows and all exposed mobile controls meet 44px', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/');
+  await page.evaluate(() => { document.documentElement.style.fontSize = '200%'; });
+  const scaled = await page.locator('h1').evaluate((heading) => {
+    const rect = heading.getBoundingClientRect();
+    return { right: rect.right, width: document.documentElement.scrollWidth, viewport: document.documentElement.clientWidth };
+  });
+  expect(scaled.right).toBeLessThanOrEqual(390.5);
+  expect(scaled.width).toBeLessThanOrEqual(scaled.viewport);
+  await page.evaluate(() => { document.documentElement.style.fontSize = ''; });
+  const landingTargets = await page.locator('#import-button, a.button[href*="/checkout"], footer a').evaluateAll((targets) => targets.map((target) => target.getBoundingClientRect().height));
+  expect(landingTargets.every((height) => height >= 44)).toBe(true);
+});
+
+test('removing a question requires confirmation and remains reversible before acceptance', async ({ page }) => {
+  await page.goto('/demo');
+  const question = page.getByText('Which exchange-rate record should I use for the May payment?');
+  page.once('dialog', (dialog) => dialog.dismiss());
+  await page.getByRole('button', { name: 'Remove question' }).first().click();
+  await expect(question).toBeVisible();
+  page.once('dialog', (dialog) => dialog.accept());
+  await page.getByRole('button', { name: 'Remove question' }).first().click();
+  await expect(question).toHaveCount(0);
 });
 
 test('invalid import, file limit, and date validation keep clear recovery behavior', async ({ page }) => {

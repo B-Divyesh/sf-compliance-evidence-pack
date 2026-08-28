@@ -18,3 +18,8 @@ describe('static deployment policy', () => {
     expect(config.navigationFallback.rewrite).toBe('/index.html');
   });
 });
+
+it('keeps the demo controls at a 44px-or-larger touch target', () => {
+  const styles = readFileSync('src/styles.css', 'utf8');
+  expect(styles).toMatch(/\.demo-banner > div > button \{ min-height: 48px; \}/);
+});

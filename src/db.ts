@@ -35,17 +35,33 @@ async function store(name: 'packets' | 'files' | 'keys', mode: IDBTransactionMod
   return database.transaction(name, mode).objectStore(name);
 }
 
+function complete(transaction: IDBTransaction): Promise<void> {
+  return new Promise((resolve, reject) => {
+    transaction.oncomplete = () => resolve();
+    transaction.onerror = () => reject(transaction.error ?? new Error('The local change could not be saved.'));
+    transaction.onabort = () => reject(transaction.error ?? new Error('The local change was cancelled.'));
+  });
+}
+
+async function write(name: 'packets' | 'files' | 'keys', operation: (objectStore: IDBObjectStore) => void): Promise<void> {
+  const database = await open();
+  const transaction = database.transaction(name, 'readwrite');
+  operation(transaction.objectStore(name));
+  await complete(transaction);
+  database.close();
+}
+
 export async function getPackets(): Promise<Packet[]> {
   const rows = await request((await store('packets')).getAll() as IDBRequest<Packet[]>);
   return rows.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
 }
 
 export async function putPacket(packet: Packet): Promise<void> {
-  await request((await store('packets', 'readwrite')).put(packet));
+  await write('packets', (objectStore) => { objectStore.put(packet); });
 }
 
 export async function deletePacket(id: string): Promise<void> {
-  await request((await store('packets', 'readwrite')).delete(id));
+  await write('packets', (objectStore) => { objectStore.delete(id); });
   const files = await getFiles(id);
   await Promise.all(files.map((file) => deleteFile(file.id)));
 }
@@ -66,17 +82,17 @@ export async function getFiles(packetId: string): Promise<EvidenceFile[]> {
 export async function putFile(file: EvidenceFile): Promise<void> {
   const key = await getDeviceKey();
   if (!key) {
-    await request((await store('files', 'readwrite')).put(file));
+    await write('files', (objectStore) => { objectStore.put(file); });
     return;
   }
   const iv = crypto.getRandomValues(new Uint8Array(12));
   const encrypted = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, await file.blob.arrayBuffer());
   const stored: StoredFile = { ...file, blob: new Blob([encrypted]), encrypted: true, iv: [...iv] };
-  await request((await store('files', 'readwrite')).put(stored));
+  await write('files', (objectStore) => { objectStore.put(stored); });
 }
 
 export async function deleteFile(id: string): Promise<void> {
-  await request((await store('files', 'readwrite')).delete(id));
+  await write('files', (objectStore) => { objectStore.delete(id); });
 }
 
 export async function clearLocalData(): Promise<void> {
@@ -97,6 +113,6 @@ async function getDeviceKey(): Promise<CryptoKey | null> {
   const existing = await request((await store('keys')).get('device') as IDBRequest<{ id: string; key: CryptoKey } | undefined>);
   if (existing?.key) return existing.key;
   const key = await crypto.subtle.generateKey({ name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']);
-  await request((await store('keys', 'readwrite')).put({ id: 'device', key }));
+  await write('keys', (objectStore) => { objectStore.put({ id: 'device', key }); });
   return key;
 }
