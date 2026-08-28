@@ -501,6 +501,12 @@ test('landing and demo keep the reviewed first-screen, preview, navigation, and 
   });
   expect(landingOrder).toBe(true);
   await page.setViewportSize({ width: 390, height: 844 });
+  // F-2-1: the privacy, offline, and price facts are part of the cold first
+  // screen. Do not let a viewport-height hero push the price below the fold.
+  await page.goto('/');
+  const mobileFacts = await page.locator('.hero-facts li').evaluateAll((items) => items.map((item) => item.getBoundingClientRect().bottom));
+  expect(mobileFacts).toHaveLength(3);
+  expect(mobileFacts.every((bottom) => bottom <= 844)).toBe(true);
   await expect(page.getByLabel('Primary navigation').getByRole('link', { name: 'Demo' })).toBeVisible();
   await expect(page.getByLabel('Primary navigation').getByRole('link', { name: 'Privacy' })).toBeVisible();
   await expect(page.getByLabel('Primary navigation').getByRole('link', { name: 'Terms' })).toBeVisible();
