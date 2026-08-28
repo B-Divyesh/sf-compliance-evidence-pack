@@ -1,74 +1,47 @@
-# Deadline Packet — polish 3 handoff
+# Deadline Packet — review 4 handoff
 
 ## Outcome
 
-Polish round 3 is complete. Every finding in reviews 1–3 is fixed and mapped
-in `.factory/polish-3.md`. The original night-market evidence-desk identity,
-static PWA deployment class, local-first packet workflow, and US$12 lifetime
-license remain intact.
+Adversarial first-read review 4 is complete against commit
+`29d862e3069b7a223daef4bc9e0b0e56c8b84986` and the live product.
 
-Live product: <https://compliance-evidence-pack.sociobot.in>
+Verdict: **FAIL** with seven findings. The primary blocker reopens F-1-11:
+twelve meaningful demo labels render at 13.3333 px despite the documented 16 px
+minimum, while the existing regression test inspects the loading shell too
+early and passes. A second blocker records an unlisted cleared-data recovery
+claim on `/privacy`. Product code was not changed.
 
-- Repair commit: `270d696e6da8e1e60d5bbdde9ce55724f45d982a`
-- Final deployment: `0e9a00ef-39f0-49f5-a260-7d41fd24f490`
+Full evidence and concrete remediations are in `.factory/review-4.md`.
 
-## What changed
+## Verification performed
 
-- Isolated demo licenses in `demo:sb_license:*`; demo activation is canned,
-  makes no Sociobot request, and reset/exit remove all demo license state.
-- Added the `license-local-storage` claim and expanded demo isolation to cover
-  real packet and license state byte-for-byte.
-- Standardized **lifetime license** and **evidence gap** across UI, policies,
-  README, manifest, offline page, metadata, and generated exports.
-- Kept the full offline status visible on phones and fixed singular question
-  grammar.
-- Replaced metadata jargon, added a real 180 × 180 Apple touch icon, and
-  renamed the create dialog to “New packet.”
-- Updated claims, demo documentation, copy audit, catalog description, service
-  worker precache, and release regression coverage.
+- Fresh 390×844 and 1440×900 cold first reads.
+- One-click live demo, realistic seed, Reset demo, Start for real, real-data
+  isolation, demo license isolation, and request-log checks.
+- Live service-worker-controlled offline reload, edit, status, and ZIP export.
+- Every one of the 23 exact `.factory/claims.json` commands from clean clone
+  `/tmp/compliance-evidence-pack-review4-raWuna`: all passed.
+- `CI=1 npm test`: 9 unit/policy and 31 Chromium tests passed.
+- `npm run build`: passed and produced `dist/`; JS is 56,145 B raw / 19,962 B
+  gzip, CSS is 26,330 B raw / 6,512 B gzip.
+- Live route metadata, 404, crawl, back/focus announcement, 200% reflow,
+  reduced motion, target sizes, and axe-core checks.
+- Live JavaScript and CSS SHA-256 values match the local build.
+- Every earlier review/polish/handoff finding was checked in live behavior and
+  code; F-1-11 is reopened, all other numbered earlier findings are fixed.
 
-## Verification
+## Artifacts
 
-Run locally:
-
-```sh
-npm ci
-CI=1 npm test
-npm run build
-```
-
-Results at the repair commit:
-
-- `npm ci`: 61 packages, zero vulnerabilities.
-- Every one of the 23 exact `.factory/claims.json` commands passed separately
-  in clean clone `/tmp/compliance-evidence-pack-polish3-final-PF3VyG`.
-- `CI=1 npm test`: TypeScript, 9 unit/policy tests, and 31 Chromium tests passed.
-- `npm run build`: `dist/` produced; JS 56.15 kB raw / 20.10 kB gzip; CSS
-  26.33 kB raw / 6.48 kB gzip.
-- `/opt/fleet/lib/verify-url.sh`: HTTP 200, correct title, `lang`, one h1,
-  main landmark, alt/button labels, and zero console errors.
-- Live Playwright/axe sweep: zero serious/critical issues on root, demo,
-  privacy, and terms; unknown route returned HTTP 404.
-- Lighthouse mobile: Performance 98, Accessibility 100, Best Practices 100,
-  SEO 100; FCP 1.0 s, LCP 1.1 s, TBT 0 ms, CLS 0.
-- Cold live `/?demo=1`: banner/reset/exit visible; edits survive offline reload;
-  full offline label fits at 390 px; demo license reset leaves no license keys;
-  zero demo calls to `api.sociobot.in`.
-- Live JS and CSS SHA-256 values match the final local `dist/` build and carry
-  immutable cache headers.
-
-Evidence:
-
-- `.factory/polish-3.md`
-- `.factory/qa-artifacts/polish-3-live/live-report.json`
-- `.factory/qa-artifacts/polish-3-live/verify/verify.json`
-- `.factory/qa-artifacts/polish-3-live/lighthouse.json`
-- `.factory/qa-artifacts/polish-3-live/first-screen-mobile.png`
-- `.factory/qa-artifacts/polish-3-live/demo-mobile.png`
-- `.factory/qa-artifacts/polish-3-live/demo-desktop.png`
-- `.factory/qa-artifacts/polish-3-live/offline-demo-mobile.png`
+- `.factory/review-4.md`
+- `.factory/qa-artifacts/review-4-first-read-mobile.png`
+- `.factory/qa-artifacts/review-4-first-read-desktop.png`
+- `.factory/qa-artifacts/review-4-demo-mobile.png`
+- `.factory/qa-artifacts/review-4-demo-offline-mobile.png`
 
 ## Known gaps and next steps
 
-None. No review finding, claim failure, accessibility defect, or deployment
-mismatch remains open.
+Fix F-4-1 through F-4-7 before acceptance. In particular, make every final
+demo label at least 16 px, wait for the seeded workspace in the typography
+test, and either test/list or remove the cleared-data recovery guarantee. Then
+deploy and repeat the full live review. No infrastructure, billing, or product
+source changes were made in this review.
