@@ -1,0 +1,10 @@
+{
+  "slug": "compliance-evidence-pack",
+  "title": "Deadline Packet",
+  "territory": "utilities",
+  "user": "Freelancers earning cross-border income who need a calm, accountant-ready packet of invoices, receipts, deadline notes, and unanswered questions for a specific filing period.",
+  "smallest_useful_product": "A local-first checklist builder with filing-period folders, attachments, a missing-evidence list, and a zipped/PDF index for accountant handoff.",
+  "artifact_class": "pwa-offline",
+  "monetization": "one-time",
+  "constraints": "No country-specific legal claims; keep documents local; make retention and export explicit; never send documents automatically."
+}
