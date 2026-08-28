@@ -29,6 +29,8 @@ clean verifier sandbox.
 
 ## Claim verification
 
-Every command in `.factory/claims.json` begins from `/demo`. The tests cover
-isolation, local-only network behavior, encryption, exports/import, live gaps,
-offline reload/edit/export, and the paid boundary.
+Every claim command starts in a fresh browser context. Demo-compatible claims
+use `/demo`; claims about a real packet create that packet in the empty real
+workspace first. The tests cover isolation, local-only network behavior,
+encryption, exports/import, live gaps, offline reload/edit/export, dates, and
+the paid boundary.

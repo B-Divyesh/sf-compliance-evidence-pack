@@ -1,0 +1,37 @@
+{
+  "root": {
+    "title": "Deadline Packet — Prepare accountant evidence",
+    "factBottoms": [
+      795.828125,
+      826.625,
+      857.421875
+    ],
+    "consoleErrors": 0
+  },
+  "axe:root": "0 serious/critical",
+  "axe:demo-mobile": "0 serious/critical",
+  "demo": {
+    "queryEntry": "pass",
+    "bannerReset": "pass",
+    "isolatedDatabase": "deadline-packet-demo",
+    "mobileNav": "pass",
+    "offlineEditExport": "pass",
+    "consoleErrors": 0
+  },
+  "deadline": {
+    "created": "15 Oct 2026",
+    "savedSummary": "20 Nov 2026",
+    "reloadSummary": "20 Nov 2026",
+    "field": "2026-11-20"
+  },
+  "axe:privacy": "0 serious/critical",
+  "axe:terms": "0 serious/critical",
+  "axe:404": "0 serious/critical",
+  "routes": {
+    "privacy": 200,
+    "terms": 200,
+    "missing": 404,
+    "spaFocus": "main",
+    "backButton": "pass"
+  }
+}

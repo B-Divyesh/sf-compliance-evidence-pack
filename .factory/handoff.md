@@ -2,40 +2,77 @@
 
 ## Outcome
 
-All findings in `review-1.md` and the earlier verification reports were repaired
-and verified. Repair commits: `e2aedc13e94b9ce78cf4f0d125b812ec528533e7`
-and `4be2fd7` (review-layout regression coverage).
+Perfection-loop round 1 is complete. All 27 findings in `review-1.md`, every
+earlier verification defect reconciled there, and the controller’s deterministic
+deadline failure are fixed and verified locally and live. Repair commit:
+`9d9021057420e2fd227a9c68990747d51f6a31df`.
 
-## What changed
+## Final repair
 
-- Serialized dashboard mutations and deferred repainting until a save burst is
-  complete, so rapid checklist/question actions keep the active form stable.
-- Added the missing public-claim tests for seeded demo contents, editable dates,
-  retained questions, demo exit, full storage clearing, and license traffic.
-- Rewrote landing, legal, README, demo, and catalog copy; added a product preview.
-- Restored mobile header links, a 16 px text baseline, desktop first-screen
-  facts, and demo heading order.
+- Dates now render in deterministic day-month-year order, including the required
+  `20 Nov 2026` summary.
+- Saving packet details waits for IndexedDB, repaints immediately, and reports a
+  useful storage error on failure.
+- Draft values and open disclosures survive asynchronous dashboard repaints.
+  This extends the earlier rapid-question repair to packet details and lifetime
+  license restoration.
+- The editable-date claim now asserts creation, visible replacement, the stored
+  IndexedDB value, the post-reload summary, and the reopened field.
+- The claims policy test requires every declared claim ID to have exactly one
+  matching browser tag and the documented exact command.
+- The catalog description is now: “Organize filing-period evidence and questions
+  for accountant review.” It starts with a verb and is under 120 characters.
 
 ## Verification
 
-- Fresh clone: `git clone --no-local /work/repo /tmp/compliance-evidence-pack-clean-KHYV7x`, `npm ci`, then all 22 exact `.factory/claims.json` commands: PASS.
-- `CI=1 npm test`: PASS — 5 Vitest and 30 Chromium tests.
-- `npm run build`: PASS; `dist/index.html` exists.
-- Production bundle: JavaScript 53.51 kB raw / 19.57 kB gzip; CSS 25.98 kB raw / 6.43 kB gzip.
-- Browser suite covers axe, privacy interception, encrypted local storage,
-  offline reload/edit/ZIP, keyboard, 200% reflow, and reduced motion.
-- Cold live check after deployment: root/demo/privacy/terms/404 each had one h1
-  and main landmark, correct title, and zero axe serious/critical issues. The
-  mobile header showed Demo, Privacy, Terms; demo banner was visible; desktop
-  fact bottoms were 796, 827, and 858 px at 1440×900. See
-  `qa-artifacts/polish-1-live-*.png`.
-- Live rapid check: all 10 checklist/question submissions remained after reload;
-  no normal-route console errors were recorded.
+- Clean clone: `/tmp/compliance-evidence-pack-clean-AxD8Jl` at
+  `9d9021057420e2fd227a9c68990747d51f6a31df`; `npm ci` passed with zero
+  vulnerabilities. All 22 commands from `.factory/claims.json` passed
+  separately, 1/1 each.
+- `CI=1 npm test`: PASS — TypeScript, 7 Vitest unit/policy tests, and all 30
+  Playwright Chromium tests.
+- `npm run build`: PASS — `dist/index.html` exists. Initial JS is 54.32 kB raw /
+  19.76 kB gzip; CSS is 25.98 kB raw / 6.43 kB gzip; hero WebP is 95.96 kB.
+- The 30 browser tests cover exports/import, isolation, privacy interception,
+  encrypted storage, storage clearing, offline reload/edit/ZIP, update prompts,
+  race stress, date persistence, billing boundaries, malformed data recovery,
+  keyboard focus, axe, 200% reflow, 44 px targets, 16 px text, reduced motion,
+  metadata, routing, and HTTP 404 policy.
+- `/opt/fleet/lib/verify-url.sh`: PASS live with HTTP 200, title, `lang=en`, one
+  h1, main landmark, complete alt/button labels, and zero console errors.
+- Live Playwright axe scans: zero serious/critical findings on `/`, `/?demo=1`,
+  `/privacy`, `/terms`, and the designed 404.
+- Live deadline exercise: created `15 Oct 2026`, saved `2026-11-20`, saw
+  `20 Nov 2026`, reloaded, saw `20 Nov 2026` again, and reopened an input value
+  of `2026-11-20`.
+- Live demo exercise: `/?demo=1` opened the isolated seeded workspace; Reset
+  demo restored the sample; the only database was `deadline-packet-demo`; an
+  offline reload accepted a checklist edit and downloaded the accountant ZIP.
+- Live routing: root/demo/privacy/terms returned 200; the unknown route returned
+  404; SPA navigation moved focus to main and Back restored the root title.
+- Lighthouse 12.7.0 mobile: Performance 100, Accessibility 100, FCP 0.9 s,
+  LCP 1.0 s, Speed Index 0.9 s, TBT 0 ms, CLS 0.
+
+Evidence is in `.factory/qa-artifacts/polish-1-retry2-*` and the full mapping is
+in `.factory/polish-1.md`.
 
 ## Deployment
 
-Deployed via `/opt/fleet/lib/deploy-static.sh compliance-evidence-pack dist`.
-The live root serves `index-caH9zT-L.js`, matching the repaired build.
+Deployed the exact `dist/` artifact with:
+
+```sh
+/opt/fleet/lib/deploy-static.sh compliance-evidence-pack dist
+```
+
+Azure deployment ID: `77b24693-dc20-4517-b745-e2239c0fc597`.
+
+Live: <https://compliance-evidence-pack.sociobot.in>
+
+The live `index-2dbtwmAS.js` SHA-256 is
+`ced0ab77ab298cc8536d49fafb64419fe85e961f868638940cfb49d1d0a7dd67`.
+The live `index-BrXjDZNm.css` SHA-256 is
+`4b06edd7a32ab26caa4c70c91bc5c0061ae346c0fe2bc1085a7b82c7d1d1a236`.
+Both byte-match the local production build.
 
 ## Known gaps
 
