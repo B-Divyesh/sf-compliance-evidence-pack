@@ -1,0 +1,177 @@
+{
+  "origin": "https://compliance-evidence-pack.sociobot.in",
+  "checkedAt": "2026-08-28T20:52:28.752Z",
+  "firstScreen": {
+    "desktop": {
+      "title": "Deadline Packet — Prepare accountant evidence",
+      "facts": [
+        {
+          "text": "No account. Data stays in this browser.",
+          "bottom": 781.96875
+        },
+        {
+          "text": "Works offline after your first visit.",
+          "bottom": 812.765625
+        },
+        {
+          "text": "One packet free. Unlimited use costs US$12 once.",
+          "bottom": 843.5625
+        }
+      ]
+    },
+    "mobile": {
+      "title": "Deadline Packet — Prepare accountant evidence",
+      "facts": [
+        {
+          "text": "No account. Data stays in this browser.",
+          "bottom": 701.59375
+        },
+        {
+          "text": "Works offline after your first visit.",
+          "bottom": 732.390625
+        },
+        {
+          "text": "One packet free. Unlimited use costs US$12 once.",
+          "bottom": 787.984375
+        }
+      ]
+    }
+  },
+  "demo": {
+    "url": "https://compliance-evidence-pack.sociobot.in/demo",
+    "files": 2,
+    "evidenceGaps": 4,
+    "questions": 2,
+    "thirdParty": [],
+    "undersized": []
+  },
+  "isolation": {
+    "realPacket": "Round 5 real marker",
+    "realLicenseUnchanged": true,
+    "demoKeys": [],
+    "databases": [
+      "deadline-packet"
+    ]
+  },
+  "offline": {
+    "heading": "APR–JUN CROSS-BORDER EVIDENCE",
+    "edited": true,
+    "download": "apr-jun-cross-border-evidence-accountant-packet.zip",
+    "badge": "Offline — edits still save"
+  },
+  "routes": {
+    "pages": {
+      "/": {
+        "status": 200,
+        "title": "Deadline Packet — Prepare accountant evidence",
+        "h1": "PREPARE EVIDENCE FOR YOUR ACCOUNTANT.",
+        "privacyLinks": 2,
+        "termsLinks": 2,
+        "metadata": {
+          "description": "Organize one filing period’s invoices, receipts, evidence gaps, and questions for accountant review.",
+          "canonical": "https://compliance-evidence-pack.sociobot.in/",
+          "ogTitle": "Deadline Packet — Prepare accountant evidence",
+          "ogDescription": "Prepare invoices, receipts, evidence gaps, and questions for accountant review."
+        }
+      },
+      "/demo": {
+        "status": 200,
+        "title": "Demo — Deadline Packet",
+        "h1": "APR–JUN CROSS-BORDER EVIDENCE",
+        "privacyLinks": 2,
+        "termsLinks": 2,
+        "metadata": {
+          "description": "Organize one filing period’s invoices, receipts, evidence gaps, and questions for accountant review.",
+          "canonical": "https://compliance-evidence-pack.sociobot.in/demo",
+          "ogTitle": "Demo — Deadline Packet",
+          "ogDescription": "Prepare invoices, receipts, evidence gaps, and questions for accountant review."
+        }
+      },
+      "/privacy": {
+        "status": 200,
+        "title": "Privacy — Deadline Packet",
+        "h1": "HOW DEADLINE PACKET STORES AND SENDS DATA.",
+        "privacyLinks": 2,
+        "termsLinks": 2,
+        "metadata": {
+          "description": "Organize one filing period’s invoices, receipts, evidence gaps, and questions for accountant review.",
+          "canonical": "https://compliance-evidence-pack.sociobot.in/privacy",
+          "ogTitle": "Privacy — Deadline Packet",
+          "ogDescription": "Prepare invoices, receipts, evidence gaps, and questions for accountant review."
+        }
+      },
+      "/terms": {
+        "status": 200,
+        "title": "Terms — Deadline Packet",
+        "h1": "A PREPARATION TOOL, NOT A FILING SERVICE.",
+        "privacyLinks": 2,
+        "termsLinks": 2,
+        "metadata": {
+          "description": "Organize one filing period’s invoices, receipts, evidence gaps, and questions for accountant review.",
+          "canonical": "https://compliance-evidence-pack.sociobot.in/terms",
+          "ogTitle": "Terms — Deadline Packet",
+          "ogDescription": "Prepare invoices, receipts, evidence gaps, and questions for accountant review."
+        }
+      },
+      "/round-5-missing": {
+        "status": 404,
+        "title": "Page not found — Deadline Packet",
+        "h1": "Page not found."
+      }
+    },
+    "links": {
+      "https://compliance-evidence-pack.sociobot.in/#main": 200,
+      "https://compliance-evidence-pack.sociobot.in/": 200,
+      "https://compliance-evidence-pack.sociobot.in/demo": 200,
+      "https://compliance-evidence-pack.sociobot.in/privacy": 200,
+      "https://compliance-evidence-pack.sociobot.in/terms": 200,
+      "https://api.sociobot.in/api/v1/products/compliance-evidence-pack/checkout": 303,
+      "https://compliance-evidence-pack.sociobot.in/demo#main": 200,
+      "https://compliance-evidence-pack.sociobot.in/privacy#main": 200,
+      "https://compliance-evidence-pack.sociobot.in/terms#main": 200
+    }
+  },
+  "assets": {
+    "/assets/index-CLlrGvM1.js": {
+      "bytes": 56043,
+      "liveSha256": "41ea4a1816b5f13f73152e02540722ccf5954a7ff9fc7a89bee264fa56354680",
+      "localSha256": "41ea4a1816b5f13f73152e02540722ccf5954a7ff9fc7a89bee264fa56354680"
+    },
+    "/assets/index-B7DxW8FR.css": {
+      "bytes": 26408,
+      "liveSha256": "bd15702f933a84729f53561316ff2eb299f32dafc79f237b2cd20b46fa8312a8",
+      "localSha256": "bd15702f933a84729f53561316ff2eb299f32dafc79f237b2cd20b46fa8312a8"
+    }
+  },
+  "axe": {
+    "404": {
+      "violations": 0,
+      "seriousOrCritical": 0
+    },
+    "root": {
+      "violations": 0,
+      "seriousOrCritical": 0
+    },
+    "demo": {
+      "violations": 0,
+      "seriousOrCritical": 0
+    },
+    "privacy": {
+      "violations": 0,
+      "seriousOrCritical": 0
+    },
+    "terms": {
+      "violations": 0,
+      "seriousOrCritical": 0
+    }
+  },
+  "consoleErrors": {
+    "unexpected": [],
+    "expected404NavigationErrors": [
+      {
+        "page": "https://compliance-evidence-pack.sociobot.in/round-5-missing",
+        "text": "Failed to load resource: the server responded with a status of 404 ()"
+      }
+    ]
+  }
+}

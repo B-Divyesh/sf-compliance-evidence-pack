@@ -213,7 +213,7 @@ test('@claim:offline-reload demo edits and ZIP export work after an offline relo
   expect(await offlineBadge.evaluate((label) => label.scrollWidth <= label.clientWidth)).toBe(true);
 });
 
-test('@claim:free-and-paid one packet is free and a valid US$12 lifetime license enables another packet and duplication', async ({ page }) => {
+test('@claim:free-and-paid the first complete packet and core exports are free before a US$12 lifetime license adds more packets', async ({ page }) => {
   await page.route('**/api/v1/products/compliance-evidence-pack/verify?*', (route) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ valid: true, reason: 'ok', expires_at: null }) }));
   await page.goto('/demo');
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Apr–Jun cross-border evidence');
