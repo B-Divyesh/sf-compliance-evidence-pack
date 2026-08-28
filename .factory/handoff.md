@@ -1,97 +1,111 @@
-# Deadline Packet — build handoff
+# Deadline Packet — repair handoff
 
-> ## Independent verification update — **FAIL**
->
-> Verified 2026-08-28 against candidate
-> `7f6d636d76500c6a025c3e49c3896ac48fb12b1c` at
-> <https://compliance-evidence-pack.sociobot.in/>. The live hashes match a
-> fresh build of this commit, but it is **not accepted for release**. Required
-> `.factory/claims.json` is missing, so no declared claim tests can run; no
-> isolated one-click “Try it with sample data” demo or `.factory/demo.md`
-> exists; and the cold landing does not meet the plain-words first-screen
-> contract. See `.factory/verification.md` for exact commands, passing
-> functional evidence, response-header/cache defects, severity, and re-run
-> instructions. No product code was changed during verification.
+Work order: `compliance-evidence-pack-repair-1`  
+Repaired: 2026-08-28  
+Verifier report: `5424a3250e6e5fb8334ebc4d00ce613dae01e790`  
+Failed candidate: `7f6d636d76500c6a025c3e49c3896ac48fb12b1c`  
+Repair commit: `1eb796a0c4297e2596c67c574c2f9690a647b0ef`
 
-Work order: `compliance-evidence-pack-build-1`  
-Completed: 2026-08-28
+## Outcome
 
-## What shipped
+Every release-blocking and acceptance finding in
+`.factory/verification.md` has a root-cause repair and regression test.
+Previously passing packet creation, validation, encrypted attachments,
+checklists, questions, ZIP/PDF/JSON output, import, persistence, paid license,
+responsive layout, and legal routes remain covered.
 
-- A responsive, installable local-first PWA for assembling filing-period
-  evidence into an accountant handoff.
-- Packet creation and editing with user-defined period and handoff date,
-  jurisdiction-neutral checklist, live missing-evidence list, local
-  attachments, questions, contact, note, recent history, duplication, and
-  confirmed deletion.
-- Real IndexedDB persistence. Attachment bytes are encrypted at rest with
-  AES-256-GCM and a non-exportable browser-profile key where Web Crypto is
-  available; decryption happens only for display/export.
-- Accountant ZIP export containing the original evidence files, a printable
-  HTML index, generated PDF index, and machine-readable manifest. Standalone
-  PDF and complete restorable JSON backup/import are also included.
-- Versioned service-worker shell precache, cache-first local assets, navigation
-  fallback, install prompt, online/offline status, and update toast. Packet
-  state and export were explicitly tested after an offline reload.
-- One fully usable packet is free. A US$19 one-time Sociobot/Dodo license adds
-  unlimited packets and duplication. Query-token capture, local storage,
-  once-daily verification, optimistic offline access, invalid-license locking,
-  and paste-to-restore follow the paid-unlock contract. No product ID is
-  embedded; the slug route is used.
-- Original night-market evidence still life generated with `factory-image`,
-  manually reviewed and shipped as a 94 KB WebP. Prompt, review, source, and
-  licensing provenance are in `.factory/design.md` and `assets/src/`.
-- Privacy and terms routes, expanded README, MIT license, robots/sitemap files,
-  PWA icons, explicit retention copy, no analytics, no runtime CDN assets, and
-  no automatic document transmission.
+## Finding-by-finding repair
 
-## How to run and verify
+1. **Missing claims contract:** added `.factory/claims.json` with seven public
+   claims. Each ID occurs in exactly one observable Playwright test.
+2. **Missing isolated demo:** `/demo` and `/?demo=1` now seed a complete
+   Apr–Jun packet. Demo data uses IndexedDB `deadline-packet-demo` and a
+   `demo:` current key. The persistent banner offers **Reset demo** and
+   **Start for real**. Reset/exit never changes the real packet database.
+3. **First-screen copy:** the headline is now “Prepare evidence for your
+   accountant.” The next line names freelancers with cross-border income. A
+   visible **Try it with sample data** action opens the working sample in one
+   click. `.factory/copy-audit.md` records word counts and terminology.
+4. **Missing CSP:** app markup no longer requires inline runtime styles or
+   handlers. Vite preview and `staticwebapp.config.json` emit a strict CSP,
+   referrer policy, and nosniff policy.
+5. **Weak asset caching:** `/assets/*` and `/icons/*` receive
+   `public, max-age=31536000, immutable`; `sw.js` receives `no-cache`.
+6. **Shared route titles:** home, demo, privacy, terms, packet, offline, and
+   404 states now set specific titles. Canonical URLs update with routes.
+7. **No designed 404/static routing:** unknown paths render a night-market
+   “misfiled page” state. The build emits `404.html`, direct route entries,
+   and an SPA navigation fallback.
+8. **Unproven PWA updates:** a browser regression serves the real production
+   worker as v1 and v2. It proves the old cache is removed, the new shell takes
+   control, and the reload notice appears.
+9. **Wrong manifest MIME:** the host policy and local preview serve
+   `.webmanifest` as `application/manifest+json`.
+
+## Exact verification
+
+The work order’s complete clean command passed:
+
+```sh
+npm ci && npm test && npm run build
+```
+
+- `npm ci`: 61 packages, 0 vulnerabilities.
+- Type/lint gate: `tsc --noEmit` passed. No separate linter is configured.
+- Vitest: 3/3 passed, including export generation and deployment policy.
+- Playwright 1.58.2 Chromium: 12/12 passed.
+- Claim commands: all seven commands in `.factory/claims.json` passed
+  independently from fresh browser contexts.
+- Accessibility: Playwright axe found 0 serious/critical issues on landing,
+  demo dashboard, privacy, and terms. Keyboard coverage proves skip-link focus,
+  Space activation, dialog focus, and Escape close. Reduced motion has no
+  running animation. Desktop and 390×844 layouts have no horizontal overflow.
+- Privacy: the full demo add/edit/export flow made same-origin requests only.
+  IndexedDB inspection proved known attachment plaintext is absent at rest.
+- PWA: an offline demo reload retained data, accepted an edit, and exported a
+  ZIP. The update regression replaced v1 with v2 and deleted the old cache.
+- Response policy: local responses include CSP, nosniff, route-specific titles,
+  correct manifest MIME, and immutable asset caching. Root, demo, privacy,
+  terms, and unknown-route entries all returned the application.
+- Factory URL verifier: landing and demo had title, `lang`, one `h1`,
+  `main`, image alt text, and zero console/page errors. Evidence is under
+  `/work/.evidence/local-root` and `/work/.evidence/local-demo`.
+- Mobile Lighthouse 12.8.2: Performance 99, Accessibility 100, Best Practices
+  100, SEO 100; FCP 1.1 s, LCP 1.9 s, TBT 40 ms, CLS 0.
+- Production sizes: JS 48,890 B raw / 18,199 B gzip; CSS 23,540 B raw /
+  6,074 B gzip; hero 95,956 B; social image 56,770 B.
+- Package/consumer testing is not applicable to this static PWA.
+
+Local production hashes before deployment:
+
+| File | SHA-256 |
+| --- | --- |
+| `dist/index.html` | `881004c42cabaad1e0fb01f4c914fbfcbdddca17b7171f31b53e4b88236efb8c` |
+| `dist/assets/index-C1JtUNRV.js` | `1c47ecef5b22bcc70868513c7c417b64c6bf5035b2d73570dbbedb0bd8ee016f` |
+| `dist/assets/index-BjFPVpUn.css` | `00dd646d7b8fee1214ae52c9fe4368ed0971e50bca05e559aa564f6d140077ab` |
+| `dist/sw.js` | `c19370ce1a1c7b9430acf4ec0584af7738d734131d40377dcf11aec4bc615780` |
+
+## Run and deploy
 
 ```sh
 npm ci
 npm test
 npm run build
+/opt/fleet/lib/deploy-static.sh compliance-evidence-pack dist
 ```
 
-The deploy command is exactly `npm run build`. It creates `dist/index.html` at
-the required static root plus direct-entry `privacy/index.html` and
-`terms/index.html` files.
+The artifact remains a Vite + TypeScript local-first PWA with static output in
+`dist/`.
 
-Verification completed from a clean production build:
+## Known limits
 
-- TypeScript `tsc --noEmit`: pass.
-- Vitest: 2/2 pass (PDF signature/content and ZIP construction).
-- Playwright 1.58.2 / Chromium: 6/6 pass (full create→attach→question→ZIP
-  journey, encrypted-at-rest assertion, landing/dashboard/legal axe scans,
-  JSON import, license capture/verification, 390 px overflow check, and
-  service-worker-controlled offline reload with state intact).
-- axe-core: no serious or critical findings on landing, working dashboard, or
-  privacy page.
-- `npm audit`: 0 vulnerabilities.
-- Production output: initial JS 44.46 KB (16.98 KB gzip), CSS 21.93 KB
-  (5.73 KB gzip), hero WebP 94 KB. All are below factory budgets.
-- Lighthouse 12.8.2 mobile: Performance 100, Accessibility 100, Best Practices
-  100, SEO 100. FCP 1.1 s, LCP 1.8 s, TBT 0 ms, CLS 0.
-- One `<h1>` per rendered screen, `lang`, `<main>`, meaningful hero alt text,
-  designed focus states, 44 px targets, reduced-motion fallback, and verified
-  dark/paper contrast are present.
+- The product remains an organizational tool, not tax/legal advice, OCR,
+  document validation, filing calculation, or government submission.
+- The browser’s storage quota and 25 MB per-file guard still apply.
+- Site-data clearing removes the device-bound encryption key and local data.
+- The license contract is tested with an intercepted valid API response. No
+  real purchase is made during repository verification.
 
-## Known limits and deliberate non-goals
+## Deployment record
 
-- This is an organizational tool, not tax/legal advice, OCR, document
-  validation, a filing calculation, or a government submission integration.
-- Templates stay jurisdiction-neutral until qualified reviewers provide
-  country-specific requirements.
-- The 25 MB per-file guard and the browser's overall storage quota apply. The
-  app cannot recover data or its device-bound encryption key after site data is
-  cleared; the UI therefore keeps backup/export controls prominent.
-- Live checkout depends on factory registration of the product slug. Browser
-  coverage verifies the documented API contract with an intercepted valid
-  response; no real purchase was made from this repository.
-
-## Factory next step
-
-Register `compliance-evidence-pack` in the Sociobot billing engine with the
-production return URL, deploy `dist/`, then smoke-test one real checkout and
-license return on the deployed origin. No DNS, billing, or infrastructure was
-changed by this build.
+Pending production upload and live identity verification.
