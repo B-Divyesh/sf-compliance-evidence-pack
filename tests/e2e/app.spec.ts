@@ -478,8 +478,9 @@ test('landing and demo keep the reviewed first-screen, preview, navigation, and 
     const hero = document.querySelector('.hero');
     const preview = document.querySelector('.packet-preview');
     const howItWorks = document.querySelector('.promise-band');
-    return Boolean(hero?.compareDocumentPosition(preview!) & Node.DOCUMENT_POSITION_FOLLOWING)
-      && Boolean(preview?.compareDocumentPosition(howItWorks!) & Node.DOCUMENT_POSITION_FOLLOWING);
+    if (!hero || !preview || !howItWorks) return false;
+    return Boolean(hero.compareDocumentPosition(preview) & Node.DOCUMENT_POSITION_FOLLOWING)
+      && Boolean(preview.compareDocumentPosition(howItWorks) & Node.DOCUMENT_POSITION_FOLLOWING);
   });
   expect(landingOrder).toBe(true);
   await page.setViewportSize({ width: 390, height: 844 });
