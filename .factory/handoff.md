@@ -1,56 +1,98 @@
-# Deadline Packet — review 7 handoff
+# Deadline Packet — repair 4 handoff
 
 ## Outcome
 
-Completed the seven-day independent, report-only re-review. The verdict is
-**FAIL** with one minor finding and zero untested claims. No product code was
-changed. Full evidence and classification are in `.factory/review-7.md`.
+**PASS.** The only review-7 finding is resolved. Direct production dependency
+`fflate` is now `0.8.3`, and a production-only audit reports zero
+vulnerabilities. `npm test` now begins with that audit, so a future production
+advisory at moderate severity or higher fails the normal quality gate.
 
-The implementation candidate is
-`758ecb0b55b77186eeb8cc1f1b0ea6634bab4d55`. The reviewed documentation base
-is `c3058a0ba76526345260740d135c3a9f3d06f749`. Product files do not differ
-between them, and the deployed JS/CSS byte-match the clean build.
+Implementation SHA: `e4659b715215dbd56081cb611f891e0f64ee538d`
+(`fix: patch fflate security advisory`). The preceding report-only
+documentation base was `c0adf6f872fb6025ca778c84367a635683fe0a39`; the
+implementation and report documentation are intentionally separate.
 
-## Finding
+This remains a static, local-first PWA. No backend, database volume, tenant,
+or replica configuration applies. The existing US$12 one-time lifetime-license
+offer and free core were preserved; its live hosted checkout and entitlement
+path remain covered by the declared browser claim.
 
-`npm audit --omit=dev` now reports one moderate advisory for direct dependency
-`fflate@0.8.2` (GHSA-px8p-9vwx-vf98). The affected `unzipSync` path is not used
-or shipped by the production app, so the finding is minor. Upgrade to `0.8.3`
-or later and rerun the full review gates before declaring PASS.
+## What changed
 
-## Verification performed
+- Updated `fflate` from 0.8.2 to 0.8.3 in the manifest and lockfile.
+- Added `npm run audit:prod`, which checks the installed production dependency
+  graph for moderate-or-higher vulnerabilities, and made it the first `npm test`
+  step. This checks the installed security outcome rather than matching source
+  text.
+- Deployed the built `dist/` through the durable existing static-web-app
+  configuration for `sf-compliance-evidence-pack`; deployment ID
+  `b0d2d153-92c2-4e78-a8eb-8dd4ee546884` completed successfully.
+- Copied the verb-first catalog description to
+  `/work/.evidence/catalog-description.txt`.
 
-- Opened live desktop and emulated Pixel 5 browsers from fresh contexts before
-  scrolling and recorded the job, audience, and first action.
-- Exercised the populated one-click demo, persistent sample label, reset, exit,
-  real-data isolation, offline reload/edit/export, and live invalid-license
-  recovery.
-- Ran all 25 exact claim commands separately from clean clone
-  `/tmp/compliance-evidence-pack-review7-67LmcS`; all passed.
-- Ran `CI=1 npm test`; 11 Vitest checks and 33 Chromium tests passed.
-- Ran `npm run build`; `dist/` was produced with 56.04 kB raw initial JS.
-- Ran the factory URL verifier, live axe checks, link/route crawl, metadata and
-  header checks, 404 check, keyboard/focus checks, 200% phone reflow, reduced
-  motion, and service-worker update coverage.
-- Lighthouse 12.8.2 mobile scored 100 in Performance, Accessibility, Best
-  Practices, and SEO; LCP was 1,034 ms, TBT 0 ms, and CLS 0.
-- Rechecked every earlier review and verification finding, including minor
-  copy, target-size, route, and metadata findings. None regressed.
+## Verification
 
-## How to repeat
+### Clean checkout
+
+A fresh clone at `/tmp/compliance-evidence-pack-repair-NXugK3` ran `npm ci`
+with zero vulnerabilities, then ran all 25 exact commands from
+`.factory/claims.json` separately. All 25 passed.
+
+### Local candidate
 
 ```sh
 npm ci
-npm audit --omit=dev
 CI=1 npm test
 npm run build
 ```
 
-Run each command in `.factory/claims.json` separately from a clean checkout.
-Use `/demo` or `/?demo=1` for the isolated sample.
+- `npm audit --omit=dev --audit-level=moderate`: pass, zero vulnerabilities.
+- `CI=1 npm test`: pass — type check, 11 Vitest tests, and 33 Chromium tests.
+- `npm run build`: pass; `dist/index.html` produced.
+- Initial assets: JS 56,050 B raw / 19,901 B gzip; CSS 26,408 B raw / 6,505 B
+  gzip.
 
-## Next step
+### Deployed HTTPS product
 
-Update `fflate` to a patched release, keep the existing claims and browser
-coverage, deploy the resulting product build, and repeat the live asset and
-advisory checks. Do not declare PASS until the finding count is zero.
+Fresh desktop (1440×900) and phone (390×844) browsers opened the live root
+before scrolling. They showed the job (**prepare filing-period evidence for
+accountant review**), audience (**freelancers with cross-border income**), and
+first action (**Try it with sample data**). All privacy, offline, and price
+facts fit in both first screens.
+
+The one-click sample opened a populated Apr–Jun packet with two files, four
+evidence gaps, and two accountant questions. Its persistent sample banner,
+Reset demo, Start for real, real-data isolation, and offline ZIP export passed.
+The live audit observed no third-party demo request and no unexpected console
+error. The only browser console message was the expected resource message for
+the deliberate HTTP 404.
+
+- `verify-url.sh`: pass — HTTPS 200, title, `lang`, one h1, main landmark, image
+  alt text, labelled buttons, and zero console errors.
+- Playwright Axe on root, demo, Privacy, Terms, and designed 404: zero serious
+  or critical findings (zero total violations).
+- Links/routes: all internal routes returned 200; the checkout returned 303;
+  the designed missing route returned HTTP 404.
+- Live JS and CSS SHA-256 values exactly matched the local deployed build.
+- Lighthouse 12.8.2 mobile: Performance 99, Accessibility 100, Best Practices
+  100, SEO 100; FCP 1.0 s, LCP 1.0 s, TBT 120 ms, CLS 0.
+
+Evidence is in `.factory/qa-artifacts/repair-4-live/`,
+`.factory/qa-artifacts/repair-4-verify/`, and
+`.factory/qa-artifacts/repair-4-lighthouse-live.json`.
+
+## Earlier findings
+
+All earlier verification and review records were read before the change. Their
+documented functional, copy, claim-accountability, mobile, accessibility,
+privacy, demo-isolation, offline, route, 404, and asset-provenance fixes remain
+covered by the 25 independent claim commands, the full browser suite, and the
+fresh live audit. Review-7 F-7-1 was the sole remaining finding; it is resolved
+by the patched installed dependency and passing production audit.
+
+## Known gaps and next steps
+
+No known product gap remains. Continue to run `npm test` and every declared
+claim command after dependency or PWA changes. The product intentionally does
+not calculate tax, determine legal requirements, submit returns, or perform
+OCR.
