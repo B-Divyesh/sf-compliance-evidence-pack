@@ -8,9 +8,11 @@ vulnerabilities. `npm test` now begins with that audit, so a future production
 advisory at moderate severity or higher fails the normal quality gate.
 
 Implementation SHA: `e4659b715215dbd56081cb611f891e0f64ee538d`
-(`fix: patch fflate security advisory`). The preceding report-only
-documentation base was `c0adf6f872fb6025ca778c84367a635683fe0a39`; the
-implementation and report documentation are intentionally separate.
+(`fix: patch fflate security advisory`). The verification-evidence
+documentation commit is `fbc9f51f6f2c323a8851bb453a4b01245051433d`; it is
+report-only, so the deployed implementation remains the earlier SHA. The
+preceding report-only documentation base was
+`c0adf6f872fb6025ca778c84367a635683fe0a39`.
 
 This remains a static, local-first PWA. No backend, database volume, tenant,
 or replica configuration applies. The existing US$12 one-time lifetime-license
