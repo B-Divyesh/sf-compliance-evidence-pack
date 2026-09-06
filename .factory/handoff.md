@@ -1,100 +1,53 @@
-# Deadline Packet — repair 4 handoff
+# Deadline Packet — verification 5 handoff
 
 ## Outcome
 
-**PASS.** The only review-7 finding is resolved. Direct production dependency
-`fflate` is now `0.8.3`, and a production-only audit reports zero
-vulnerabilities. `npm test` now begins with that audit, so a future production
-advisory at moderate severity or higher fails the normal quality gate.
+**PASS.** Independent verification found zero findings and zero untested
+claims. The implementation reviewed is
+e4659b715215dbd56081cb611f891e0f64ee538d. The documentation base is
+e9e04820b5eec2cff97c17b3c35b958fa59481e7; it is report-only and does not
+change the deployed product image.
 
-Implementation SHA: `e4659b715215dbd56081cb611f891e0f64ee538d`
-(`fix: patch fflate security advisory`). The verification-evidence
-documentation commit is `fbc9f51f6f2c323a8851bb453a4b01245051433d`; it is
-report-only, so the deployed implementation remains the earlier SHA. The
-preceding report-only documentation base was
-`c0adf6f872fb6025ca778c84367a635683fe0a39`.
+The full report is .factory/verification-5.md.
 
-This remains a static, local-first PWA. No backend, database volume, tenant,
-or replica configuration applies. The existing US$12 one-time lifetime-license
-offer and free core were preserved; its live hosted checkout and entitlement
-path remain covered by the declared browser claim.
+## What was verified
 
-## What changed
+- Fresh desktop and phone visits stated the job, audience, and first action
+  before scrolling.
+- The one-click demo opened a populated Apr–Jun packet with two files, four
+  evidence gaps, and two accountant questions. Its label, reset, isolation,
+  exit, and real-data protection passed.
+- Offline reload, edit, status, and ZIP export passed in a new browser context.
+- All 25 declared claim commands passed separately from a fresh clone.
+- CI=1 npm test passed: zero production audit vulnerabilities, TypeScript,
+  11 Vitest policy/unit tests, and 33 Chromium tests.
+- npm run build passed and created dist/index.html. Initial JS is 56,050 B
+  raw / 20.05 kB gzip; CSS is 26,408 B raw / 6.50 kB gzip.
+- Live JS and CSS exactly match that clean build.
+- Root, demo, privacy, terms, links, titles, focus, keyboard behavior, legal
+  pages, metadata, designed HTTP 404, and reduced-motion coverage passed.
+- Playwright Axe found zero violations on root, demo, privacy, terms, and 404.
 
-- Updated `fflate` from 0.8.2 to 0.8.3 in the manifest and lockfile.
-- Added `npm run audit:prod`, which checks the installed production dependency
-  graph for moderate-or-higher vulnerabilities, and made it the first `npm test`
-  step. This checks the installed security outcome rather than matching source
-  text.
-- Deployed the built `dist/` through the durable existing static-web-app
-  configuration for `sf-compliance-evidence-pack`; deployment ID
-  `b0d2d153-92c2-4e78-a8eb-8dd4ee546884` completed successfully.
-- Copied the verb-first catalog description to
-  `/work/.evidence/catalog-description.txt`.
+## Advisory disposition
 
-## Verification
+The previous minor dependency finding F-7-1 is resolved. fflate is 0.8.3, and
+npm audit --omit=dev --audit-level=moderate reports zero vulnerabilities. The
+production audit is now part of npm test.
 
-### Clean checkout
+## Scope
 
-A fresh clone at `/tmp/compliance-evidence-pack-repair-NXugK3` ran `npm ci`
-with zero vulnerabilities, then ran all 25 exact commands from
-`.factory/claims.json` separately. All 25 passed.
+Deadline Packet is a local-first static PWA. It has no product backend, tenant,
+health endpoint, or product-owned rate-limit API, so backend persistence,
+tenant isolation, health, and 429/Retry-After checks do not apply.
 
-### Local candidate
+## Reproduce
 
-```sh
-npm ci
-CI=1 npm test
-npm run build
-```
-
-- `npm audit --omit=dev --audit-level=moderate`: pass, zero vulnerabilities.
-- `CI=1 npm test`: pass — type check, 11 Vitest tests, and 33 Chromium tests.
-- `npm run build`: pass; `dist/index.html` produced.
-- Initial assets: JS 56,050 B raw / 19,901 B gzip; CSS 26,408 B raw / 6,505 B
-  gzip.
-
-### Deployed HTTPS product
-
-Fresh desktop (1440×900) and phone (390×844) browsers opened the live root
-before scrolling. They showed the job (**prepare filing-period evidence for
-accountant review**), audience (**freelancers with cross-border income**), and
-first action (**Try it with sample data**). All privacy, offline, and price
-facts fit in both first screens.
-
-The one-click sample opened a populated Apr–Jun packet with two files, four
-evidence gaps, and two accountant questions. Its persistent sample banner,
-Reset demo, Start for real, real-data isolation, and offline ZIP export passed.
-The live audit observed no third-party demo request and no unexpected console
-error. The only browser console message was the expected resource message for
-the deliberate HTTP 404.
-
-- `verify-url.sh`: pass — HTTPS 200, title, `lang`, one h1, main landmark, image
-  alt text, labelled buttons, and zero console errors.
-- Playwright Axe on root, demo, Privacy, Terms, and designed 404: zero serious
-  or critical findings (zero total violations).
-- Links/routes: all internal routes returned 200; the checkout returned 303;
-  the designed missing route returned HTTP 404.
-- Live JS and CSS SHA-256 values exactly matched the local deployed build.
-- Lighthouse 12.8.2 mobile: Performance 99, Accessibility 100, Best Practices
-  100, SEO 100; FCP 1.0 s, LCP 1.0 s, TBT 120 ms, CLS 0.
-
-Evidence is in `.factory/qa-artifacts/repair-4-live/`,
-`.factory/qa-artifacts/repair-4-verify/`, and
-`.factory/qa-artifacts/repair-4-lighthouse-live.json`.
-
-## Earlier findings
-
-All earlier verification and review records were read before the change. Their
-documented functional, copy, claim-accountability, mobile, accessibility,
-privacy, demo-isolation, offline, route, 404, and asset-provenance fixes remain
-covered by the 25 independent claim commands, the full browser suite, and the
-fresh live audit. Review-7 F-7-1 was the sole remaining finding; it is resolved
-by the patched installed dependency and passing production audit.
+    npm ci
+    CI=1 npm test
+    npm run build
+    node scripts/live-audit.mjs https://compliance-evidence-pack.sociobot.in .factory/qa-artifacts/verification-5-live
 
 ## Known gaps and next steps
 
-No known product gap remains. Continue to run `npm test` and every declared
-claim command after dependency or PWA changes. The product intentionally does
-not calculate tax, determine legal requirements, submit returns, or perform
-OCR.
+No known gaps remain. Keep the declared claim commands, offline check, and
+production dependency audit in the release gate for future changes.
